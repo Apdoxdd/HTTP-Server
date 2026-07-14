@@ -24,6 +24,12 @@ void HTTP_ERROR ( int code, SOCKET &client)
 
 void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
 {
+    if ( msg.url == "--" )
+    {
+        HTTP_ERROR( 400, client );
+        msg.connection = "close";
+        return;
+    }
     HANDLE hFile = CreateFile(
             (path + msg.url ).c_str(),
             GENERIC_READ,

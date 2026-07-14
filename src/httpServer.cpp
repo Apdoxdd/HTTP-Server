@@ -4,6 +4,7 @@
 #include <mswsock.h>
 #include "../include/httpRequest.hpp"
 #include "../include/maps.hpp"
+#include "methods.hpp"
 #include "../include/httpServer.hpp"
 #include <errhandlingapi.h>
 #include <string>
@@ -119,6 +120,12 @@ void httpServer::acceptAndServe ()
             delete [] recvBuf;
 
             auto methodCheck = methodMap.find ( msg.method );
+            if ( msg.version == "--" )
+            {
+                HTTP_ERROR(505, client);
+                msg.connection = "close";
+
+            }
             if ( methodCheck == methodMap.end () )
             {
                 HTTP_ERROR( 405, client );

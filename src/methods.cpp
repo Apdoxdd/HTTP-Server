@@ -19,7 +19,7 @@ void HTTP_ERROR ( int code, SOCKET &client)
                            "Content-Type: application/json\r\n"
                            "Content-Length: 0\r\n"
                            "Connection: close\r\n"
-                           "Allow: GET, PUT, DELETE"
+                           "Allow: GET, PUT, DELETE\r\n"
                            "\r\n";
     send ( client, response.c_str(), response.size(), 0 );  
 }

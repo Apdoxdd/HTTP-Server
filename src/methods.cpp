@@ -75,6 +75,13 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
 
 void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
 {
+    if ( msg.url == "--" )
+    {
+        HTTP_ERROR( 400, client );
+        msg.connection = "close";
+        return;
+    }
+    
     std::string fullPath = path  + msg.url;
     LPCSTR file = fullPath.c_str();
 
@@ -105,6 +112,13 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
 
 void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
 {
+
+    if ( msg.url == "--" )
+    {
+        HTTP_ERROR( 400, client );
+        msg.connection = "close";
+        return;
+    }
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 

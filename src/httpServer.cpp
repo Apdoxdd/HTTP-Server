@@ -126,7 +126,7 @@ void httpServer::acceptAndServe ()
                 msg.connection = "close";
 
             }
-            if ( methodCheck == methodMap.end () )
+            else if ( methodCheck == methodMap.end () )
             {
                 HTTP_ERROR( 405, client );
             }

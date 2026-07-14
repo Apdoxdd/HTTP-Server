@@ -101,6 +101,7 @@ void httpRequest::extractBody ( std::string& msg )
 
 httpRequest::httpRequest ():
    connection( "open" ),
-   contLength( "0" )
+   contLength( "0" ),
+   host ( "none" )
 {}
 

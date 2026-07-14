@@ -15,6 +15,7 @@ private:
     std::string body;
     std::string connection;
     std::string contLength;
+    std::string host;
 public:
     httpRequest ();
     void extractMethod( std::string& msg );
@@ -38,6 +39,7 @@ friend void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path );
 
 friend void headerConnection ( std::string &value, httpRequest &msg );
 friend void headerLength( std::string &value, httpRequest &msg );
+friend void headerHost ( std::string &value, httpRequest &msg );
 
 
 };

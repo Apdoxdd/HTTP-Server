@@ -17,7 +17,9 @@ void HTTP_ERROR ( int code, SOCKET &client)
     std::string status  = erros [ code ];
     std::string response = "HTTP/1.1 "+codeStr+status+"\r\n"
                            "Content-Type: application/json\r\n"
+                           "Content-Length: 0\r\n"
                            "Connection: close\r\n"
+                           "Allow: GET, PUT, DELETE"
                            "\r\n";
     send ( client, response.c_str(), response.size(), 0 );  
 }
@@ -43,7 +45,6 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
     {
         std::cout<<"Error accessing file or it doesnt exist, code: "<<GetLastError()<<std::endl;
         HTTP_ERROR ( 404, client );
-        // new
         msg.connection = "close";
     }
     else 
@@ -220,6 +221,11 @@ void headerLength ( std::string &value, httpRequest &msg )
     msg.contLength = value;
 
 
+}
+
+void headerHost ( std::string &value, httpRequest &msg )
+{
+    msg.host = value;
 }
 
 

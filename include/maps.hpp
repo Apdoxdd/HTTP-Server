@@ -30,7 +30,8 @@ inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::str
 
 inline std::unordered_map<std::string, void(*) (std::string&, httpRequest&)> headerMap {
     {"connection", headerConnection},
-    {"content-length", headerLength }
+    {"content-length", headerLength},
+    {"host", headerHost  }
 
 };
 

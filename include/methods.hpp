@@ -16,7 +16,7 @@ void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path );
 void parseHeaders ( std::string &headers, httpRequest &msg );
 void headerConnection ( std::string &value, httpRequest &msg);
 void headerLength( std::string &value, httpRequest &msg );
-
+void headerHost( std::string &value, httpRequest &msg );
 
 
 

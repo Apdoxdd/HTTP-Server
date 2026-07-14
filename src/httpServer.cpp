@@ -89,6 +89,8 @@ void httpServer::getRequest ( char* recBuf, httpRequest &msg, int &bytesRec )
             {return std::tolower (c);});
     parseHeaders(msg.headers, msg );
     msg.extractBody( req );
+    if ( msg.version == "HTTP/1.0" )
+        msg.connection = "close";
 
 }
 
@@ -120,15 +122,21 @@ void httpServer::acceptAndServe ()
             delete [] recvBuf;
 
             auto methodCheck = methodMap.find ( msg.method );
-            if ( msg.version == "--" )
+            if ( msg.version != "HTTP/1.1" && msg.version != "HTTP/1.0" )
             {
                 HTTP_ERROR(505, client);
                 msg.connection = "close";
 
             }
+            else if ( msg.host == "none" )
+            {
+                HTTP_ERROR ( 400, client );
+                msg.connection = "close";
+            }
             else if ( methodCheck == methodMap.end () )
             {
                 HTTP_ERROR( 405, client );
+                msg.connection = "close";
             }
             else 
             {

@@ -3,10 +3,11 @@
 #include "../include/maps.hpp"
 #include <algorithm>
 #include <cstddef>
+#include <handleapi.h>
 #include <iostream>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-#include <memory>
+#include <charconv>
 #include <string>
 #include <fileapi.h>
 #include <winnt.h>
@@ -188,7 +189,17 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
         bytesWritten += currentWrittenBytes;
     }
     std::cout<<msg.contLength<<std::endl;
-    int remainBytes = std::stoi( msg.contLength ) - msg.body.size();
+    int value {};
+    auto result = std::from_chars (msg.contLength.data(), msg.contLength.data() + msg.contLength.size(), value);
+    if ( result.ec != std::errc{} || value < ( int ) msg.body.size() )
+    {
+        std::cout<<"Invalid or missing Content-Length"<<std::endl;
+        HTTP_ERROR ( 400, client );
+        msg.connection = "close";
+        CloseHandle(hFile);
+        return;
+    }
+    int remainBytes = value - (int) msg.body.size();
     int bufferSize = std::min<int>( 32000, remainBytes );
     char* buffer = new char [ bufferSize ];
     bytesWritten = 0;

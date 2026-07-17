@@ -105,9 +105,10 @@ void httpServer::acceptAndServe ()
         std::thread worker ( [=]() mutable {
 
 
-        httpRequest msg {};
-        while ( msg.connection == "open")
+        while ( true )
         {
+
+            httpRequest msg {};
             char* recvBuf = new char[4096];
             int bytesRec = recv( client, recvBuf, 4096, 0 );
             if ( bytesRec <= 0 ) 
@@ -140,10 +141,13 @@ void httpServer::acceptAndServe ()
             }
             else 
             {
-                methodMap [ msg.method ] ( msg, client, contentPath );
+                methodMap.at( msg.method ) ( msg, client, contentPath );
             }
             if ( msg.connection == "close" )
+            {
                 closesocket( client );
+                break;
+            }
         }
 
 

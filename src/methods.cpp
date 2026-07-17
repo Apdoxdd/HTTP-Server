@@ -6,6 +6,7 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#include <memory>
 #include <string>
 #include <fileapi.h>
 #include <winnt.h>
@@ -46,18 +47,43 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         std::cout<<"Error accessing file or it doesnt exist, code: "<<GetLastError()<<std::endl;
         HTTP_ERROR ( 404, client );
         msg.connection = "close";
+        return;
     }
     else 
     {
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
-        size_t index = msg.url.find( '.' ) + 1;
+        size_t index = msg.url.find( '.' );
+        if ( index == std::string::npos )
+        {
+
+            std::cout<<" invalid url structure "<<std::endl;
+            HTTP_ERROR(400, client);
+            msg.connection = "close";
+            CloseHandle( hFile );
+            return;
+        }
+        index++;
         std::string alias = msg.url.substr( index, msg.url.size() - index );
-        std::cout<<alias<<" "<<conType[alias]<<std::endl;
+        try 
+        {
+            conType.at( alias );
+        }       
+        
+        catch ( const std::out_of_range& e) 
+        {
+            std::cout<<" invalid alias "<<std::endl;
+            HTTP_ERROR(400, client);
+            msg.connection = "close";
+            CloseHandle( hFile );
+            return;
+
+        }
+        std::cout<<alias<<" "<<conType.at( alias )<<std::endl;
 
 
         std::string header = "HTTP/1.1 200 OK\r\n"
-                             "Content-Type: "+ conType[alias] +"\r\n"
+                             "Content-Type: "+ conType.at(alias) +"\r\n"
                              "Content-Length: " + std::to_string( fileSize.QuadPart )+"\r\n" 
                              "Connection: keep-alive\r\n"
                              "\r\n";

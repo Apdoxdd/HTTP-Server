@@ -66,12 +66,9 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         }
         index++;
         std::string alias = msg.url.substr( index, msg.url.size() - index );
-        try 
-        {
-            conType.at( alias );
-        }       
         
-        catch ( const std::out_of_range& e) 
+        auto it = conType.find ( alias );
+        if ( it == conType.end() )
         {
             std::cout<<" invalid alias "<<std::endl;
             HTTP_ERROR(400, client);
@@ -80,11 +77,11 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
             return;
 
         }
-        std::cout<<alias<<" "<<conType.at( alias )<<std::endl;
+        std::cout<<alias<<" "<<it->second<<std::endl;
 
 
         std::string header = "HTTP/1.1 200 OK\r\n"
-                             "Content-Type: "+ conType.at(alias) +"\r\n"
+                             "Content-Type: "+ it->second +"\r\n"
                              "Content-Length: " + std::to_string( fileSize.QuadPart )+"\r\n" 
                              "Connection: keep-alive\r\n"
                              "\r\n";

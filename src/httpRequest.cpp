@@ -1,8 +1,7 @@
 #include "../include/httpRequest.hpp"
-#include <iostream>
 #include <string>
-
-
+#include <vector>
+#include <algorithm>
 void httpRequest::extractMethod ( std::string& msg )
 {
     size_t end = msg.find( ' ' );
@@ -31,15 +30,43 @@ void httpRequest::extractURL ( std::string& msg )
         return;
     }
     url = msg.substr( start, end - start );
-    size_t sant = url.find( "../" );
-    size_t sant2 = url.find( "..\\");
-    if ( sant != std::string::npos || sant2 != std::string::npos )
+
+    std::transform( url.begin(), url.end(), url.begin(), [](unsigned char c)
+            {return std::tolower (c);});
+    // not an exhaustive list but works well for most attempts
+    std::vector<std::string> byPass = {
+       "../", 
+       "..\\",
+       "%2e%2e%2f",
+       "%2e%2e/",
+       "..%2f",
+       "%2e%2e%5c",
+       "%2e%2e\\",
+       "%252e%252e%252f",
+       "%252e%252e/",
+       "%c0%ae%c0%ae%c0%af",
+       "%uff0e%uff0e%uff0f",
+    };
+    bool found = std::any_of( byPass.begin(), byPass.end(), [&] ( const std::string& pass) {
+            return url.find( pass ) != std::string::npos;
+            });
+    if ( found )
     {
         url = "--";
         return;
     }
     if ( url.empty() )
         url = "index.html";
+    else 
+    {
+
+        if ( url.find( ':' ) != std::string::npos ||
+               url.substr(0, 2) == "\\\\" || url.back() == '.' || url.back() == ' ' )
+        {
+            url = "--";
+                return;
+        }
+    }
 }
 
 void httpRequest::extractVersion ( std::string& msg )

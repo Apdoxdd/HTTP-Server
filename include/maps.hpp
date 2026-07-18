@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include "methods.hpp"
 
+//even tho many threads access these maps its okay in this specific case as we only ever read
+// and stl by default supports multiple concerent reads
 
 inline std::unordered_map <std::string,std::string> conType = {
         {"html","text/html"},

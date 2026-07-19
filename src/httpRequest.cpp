@@ -33,19 +33,29 @@ void httpRequest::extractURL ( std::string& msg )
 
     std::transform( url.begin(), url.end(), url.begin(), [](unsigned char c)
             {return std::tolower (c);});
+    size_t pos = 0;
+    std::vector<std::string> allowedEnc = {
+            "%20", "%3f", "%23", "%26", "%40"
+    };
+    while ( ( pos = url.find( '%', pos ) ) != std::string::npos )
+    {
+        std::string cand = url.substr (pos ,3 ); //  %26 = & which is allowed
+        bool isAllowed = std::any_of( allowedEnc.begin(), allowedEnc.end(), [&] (const std::string& pass ){
+        return cand == pass;});
+        if ( !isAllowed )
+            {
+                url = "--";
+                return;
+            }
+            pos += 3;
+    }
+                
+
     // not an exhaustive list but works well for most attempts
     std::vector<std::string> byPass = {
        "../", 
        "..\\",
-       "%2e%2e%2f",
-       "%2e%2e/",
-       "..%2f",
-       "%2e%2e%5c",
-       "%2e%2e\\",
-       "%252e%252e%252f",
-       "%252e%252e/",
-       "%c0%ae%c0%ae%c0%af",
-       "%uff0e%uff0e%uff0f",
+       "//"
     };
     bool found = std::any_of( byPass.begin(), byPass.end(), [&] ( const std::string& pass) {
             return url.find( pass ) != std::string::npos;

@@ -122,24 +122,7 @@ void httpServer::acceptAndServe ()
             getRequest( recvBuf, msg, bytesRec );
             delete [] recvBuf;
 
-            auto methodCheck = methodMap.find ( msg.method );
-            if ( msg.version != "HTTP/1.1" && msg.version != "HTTP/1.0" )
-            {
-                HTTP_ERROR(505, client);
-                msg.connection = "close";
-
-            }
-            else if ( msg.host == "none" )
-            {
-                HTTP_ERROR ( 400, client );
-                msg.connection = "close";
-            }
-            else if ( methodCheck == methodMap.end () )
-            {
-                HTTP_ERROR( 405, client );
-                msg.connection = "close";
-            }
-            else 
+            if ( validateRequest( msg, client) ) 
             {
                 methodMap.at( msg.method ) ( msg, client, contentPath );
             }
@@ -157,6 +140,36 @@ void httpServer::acceptAndServe ()
     closesocket( server );
 
 
+}
+
+bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
+{
+    
+            auto methodCheck = methodMap.find ( msg.method );
+
+            if ( msg.version != "HTTP/1.1" && msg.version != "HTTP/1.0" )
+            {
+                if ( msg.version == "HTTP/2" || msg.version == "HTTP/3" )
+                    HTTP_ERROR(505, client);
+                else
+                 HTTP_ERROR( 400, client );
+                msg.connection = "close";
+                return false;
+
+            }
+            else if ( msg.host == "none" || msg.host == "" )
+            {
+                HTTP_ERROR ( 400, client );
+                msg.connection = "close";
+                return false;
+            }
+            else if ( methodCheck == methodMap.end () )
+            {
+                HTTP_ERROR( 405, client );
+                msg.connection = "close";
+                return false;
+            }
+            return true;
 }
 
 void httpServer::startup( int port )

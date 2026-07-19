@@ -251,8 +251,11 @@ void headerConnection ( std::string &value, httpRequest &msg )
 }
 void headerLength ( std::string &value, httpRequest &msg )
 {
+    if ( msg.contLength == "0" )
 
-    msg.contLength = value;
+        msg.contLength = value;
+    else
+     msg.contLength = "err";
 
 
 }

@@ -78,7 +78,7 @@ bool httpServer::init ( int port )
 
 
 }
-void httpServer::getRequest ( char* recBuf, httpRequest &msg, int &bytesRec )
+void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRec )
 {
     std::string req ( recBuf, bytesRec );
     msg.extractMethod( req );
@@ -109,18 +109,40 @@ void httpServer::acceptAndServe ()
         {
 
             httpRequest msg {};
-            char* recvBuf = new char[4096];
-            int bytesRec = recv( client, recvBuf, 4096, 0 );
-            if ( bytesRec <= 0 ) 
+            std::string accumlate{};
+            int bytes {0};
+            while ( accumlate.find("\r\n\r\n") == std::string::npos && client != INVALID_SOCKET)
+            {        
+                char recvBuf [4097] {};
+                int bytesRec = recv( client, recvBuf, 4096, 0 );
+                if ( bytesRec <= 0) 
+                {
+                    std::cout<<"Error overflow in the recived request"<<std::endl;
+                    closesocket(client);
+                    client = INVALID_SOCKET;
+                    break;
+                }
+                if ( accumlate.size() > 125000 )
+                {
+                    HTTP_ERROR(400, client);
+                    closesocket(client);
+                    client = INVALID_SOCKET;
+                    break;
+                }
+                recvBuf[ bytesRec ] = '\0';
+                std::string temp ( recvBuf, bytesRec );
+                accumlate += temp;
+                bytes += bytesRec;
+                
+            }
+            if ( client == INVALID_SOCKET )
+                
             {
-                std::cout<<"Error overflow in the recived request"<<std::endl;
-                delete [] recvBuf;
-                closesocket(client);
-
                 break;
             }
-            getRequest( recvBuf, msg, bytesRec );
-            delete [] recvBuf;
+            const char* recvBuf = accumlate.c_str();
+                
+            getRequest( recvBuf, msg, bytes );
 
             if ( validateRequest( msg, client) ) 
             {
@@ -178,6 +200,12 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
                 msg.connection = "close";
                 return false;
 
+            }
+            else if ( msg.contLength == "err" )
+            {
+                HTTP_ERROR( 400, client );
+                msg.connection = "close";
+                return false;
             }
             return true;
 }

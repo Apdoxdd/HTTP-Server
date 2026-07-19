@@ -14,7 +14,7 @@ private:
 public:
     bool init( int port = 8080 );
     void acceptAndServe();
-    void getRequest( char* recBuf, httpRequest& msg, int &bytesRec );
+    void getRequest( const char* recBuf, httpRequest& msg, int &bytesRec );
     void startup ( int port = 8080);
     bool validateRequest( httpRequest& msg, SOCKET& cllient ); 
     httpServer ();

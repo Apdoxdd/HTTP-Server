@@ -17,12 +17,12 @@ inline std::unordered_map <std::string,std::string> conType = {
 
 
 inline std::unordered_map< int, std::string >erros = {
-    { 405, "Method Not Allowed" },
-    { 400, "Bad Request" },
-    { 500, "Internal Server Error" },
-    { 505, "Version Not Supported"  },
-    { 404, "Not Found" },
-    { 501, "Not Implemented"}
+    { 405, " Method Not Allowed" },
+    { 400, " Bad Request" },
+    { 500, " Internal Server Error" },
+    { 505, " Version Not Supported"  },
+    { 404, " Not Found" },
+    { 501, " Not Implemented"}
 };
 
 inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string&)> methodMap {

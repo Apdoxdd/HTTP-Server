@@ -169,6 +169,16 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
                 msg.connection = "close";
                 return false;
             }
+            else if ( msg.encoding != "whole" )
+            {
+                if ( msg.encoding == "chunked" )
+                    HTTP_ERROR( 501, client );
+                else
+                 HTTP_ERROR( 400, client );
+                msg.connection = "close";
+                return false;
+
+            }
             return true;
 }
 

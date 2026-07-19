@@ -261,7 +261,10 @@ void headerHost ( std::string &value, httpRequest &msg )
 {
     msg.host = value;
 }
-
+void headerEncoding(std::string &value, httpRequest &msg)
+{
+    msg.encoding = value;
+}
 
 void parseHeaders ( std::string &headers, httpRequest &msg )
 {

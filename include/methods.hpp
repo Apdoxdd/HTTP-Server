@@ -17,7 +17,7 @@ void parseHeaders ( std::string &headers, httpRequest &msg );
 void headerConnection ( std::string &value, httpRequest &msg);
 void headerLength( std::string &value, httpRequest &msg );
 void headerHost( std::string &value, httpRequest &msg );
-
+void headerEncoding( std::string &value, httpRequest &msg);
 
 
 #endif

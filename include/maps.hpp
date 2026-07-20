@@ -22,7 +22,8 @@ inline std::unordered_map< int, std::string >erros = {
     { 500, " Internal Server Error" },
     { 505, " Version Not Supported"  },
     { 404, " Not Found" },
-    { 501, " Not Implemented"}
+    { 501, " Not Implemented"},
+    { 413, " Content Too Large"}
 };
 
 inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string&)> methodMap {

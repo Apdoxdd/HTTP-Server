@@ -205,13 +205,33 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
 
 void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
 {
-
+    
     if ( msg.url == "--" )
     {
         HTTP_ERROR( 400, client );
         msg.connection = "close";
         return;
     }
+    int value {};
+    auto result = std::from_chars (msg.contLength.data(), msg.contLength.data() + msg.contLength.size(), value);
+    if ( result.ec != std::errc{} || value < ( int ) msg.body.size()  ) // 1GB limit
+    {
+        
+        std::cout<<"Invalid or missing Content-Length"<<std::endl;
+        HTTP_ERROR ( 400, client );
+        msg.connection = "close";
+        return;
+    }
+    if ( value > 1073741824 )
+    {
+
+
+        std::cout<<"Content too large"<<std::endl;
+        HTTP_ERROR ( 413, client );
+        msg.connection = "close";
+        return;
+    }
+
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 
@@ -237,6 +257,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
         std::cout<<"File accessed successfully"<<std::endl;
 
     }
+
     DWORD bytesToWrite = (DWORD) msg.body.size();
     DWORD bytesWritten = 0;
     while ( bytesWritten < bytesToWrite )
@@ -252,17 +273,6 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
             return;
         }
         bytesWritten += currentWrittenBytes;
-    }
-    std::cout<<msg.contLength<<std::endl;
-    int value {};
-    auto result = std::from_chars (msg.contLength.data(), msg.contLength.data() + msg.contLength.size(), value);
-    if ( result.ec != std::errc{} || value < ( int ) msg.body.size() || value > 125000000 ) // 1GB limit
-    {
-        std::cout<<"Invalid or missing Content-Length"<<std::endl;
-        HTTP_ERROR ( 400, client );
-        msg.connection = "close";
-        CloseHandle(hFile);
-        return;
     }
     int remainBytes = value - (int) msg.body.size();
     int bufferSize = std::min<int>( 32000, remainBytes );

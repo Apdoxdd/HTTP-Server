@@ -256,7 +256,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
     std::cout<<msg.contLength<<std::endl;
     int value {};
     auto result = std::from_chars (msg.contLength.data(), msg.contLength.data() + msg.contLength.size(), value);
-    if ( result.ec != std::errc{} || value < ( int ) msg.body.size() )
+    if ( result.ec != std::errc{} || value < ( int ) msg.body.size() || value > 125000000 ) // 1GB limit
     {
         std::cout<<"Invalid or missing Content-Length"<<std::endl;
         HTTP_ERROR ( 400, client );

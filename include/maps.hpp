@@ -28,7 +28,8 @@ inline std::unordered_map< int, std::string >erros = {
 inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string&)> methodMap {
     {"GET",     HTTP_GET},
     {"DELETE",  HTTP_DELETE},
-    {"PUT",     HTTP_PUT}
+    {"PUT",     HTTP_PUT},
+    {"HEAD",    HTTP_HEAD}
 };
 
 inline std::unordered_map<std::string, void(*) (std::string&, httpRequest&)> headerMap {

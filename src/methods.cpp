@@ -21,9 +21,75 @@ void HTTP_ERROR ( int code, SOCKET &client)
                            "Content-Type: application/json\r\n"
                            "Content-Length: 0\r\n"
                            "Connection: close\r\n"
-                           "Allow: GET, PUT, DELETE\r\n"
+                           "Date: " + getDateNdTime() + "\r\n"
                            "\r\n";
     send ( client, response.c_str(), response.size(), 0 );  
+}
+
+
+void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
+{
+    if ( msg.url == "--" )
+    {
+        HTTP_ERROR( 400, client );
+        msg.connection = "close";
+        return;
+    }
+
+    HANDLE hFile = CreateFile(
+            (path + msg.url ).c_str(),
+            GENERIC_READ,
+            FILE_SHARE_READ,
+            NULL,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL
+            );
+    if ( hFile == INVALID_HANDLE_VALUE )
+    {
+        std::cout<<"Error accessing file or it doesnt exist, code: "<<GetLastError()<<std::endl;
+        HTTP_ERROR ( 404, client );
+        msg.connection = "close";
+        return;
+    }
+    else 
+    {
+        LARGE_INTEGER fileSize {};
+        GetFileSizeEx( hFile , &fileSize );
+        size_t index = msg.url.find( '.' );
+        if ( index == std::string::npos )
+        {
+
+            std::cout<<" invalid url structure "<<std::endl;
+            HTTP_ERROR(400, client);
+            msg.connection = "close";
+            CloseHandle( hFile );
+            return;
+        }
+        index++;
+        std::string alias = msg.url.substr( index, msg.url.size() - index );
+        
+        auto it = conType.find ( alias );
+        if ( it == conType.end() )
+        {
+            std::cout<<" invalid alias "<<std::endl;
+            HTTP_ERROR(400, client);
+            msg.connection = "close";
+            CloseHandle( hFile );
+            return;
+
+        }
+        std::cout<<alias<<" "<<it->second<<std::endl;
+
+
+        std::string header = "HTTP/1.1 200 OK\r\n"
+                             "Content-Type: "+ it->second +"\r\n"
+                             "Content-Length: " + std::to_string( fileSize.QuadPart )+"\r\n" 
+                             "Connection: keep-alive\r\n"
+                             "Date: " + getDateNdTime() + "\r\n"
+                             "\r\n";
+        send ( client, header.c_str(), header.size(), 0 );
+    }
 }
 
 void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
@@ -78,12 +144,13 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
 
         }
         std::cout<<alias<<" "<<it->second<<std::endl;
-
+        std::string dateNdTime = getDateNdTime();
 
         std::string header = "HTTP/1.1 200 OK\r\n"
                              "Content-Type: "+ it->second +"\r\n"
                              "Content-Length: " + std::to_string( fileSize.QuadPart )+"\r\n" 
                              "Connection: keep-alive\r\n"
+                             "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
         send ( client, header.c_str(), header.size(), 0 );
         bool success = TransmitFile ( client, hFile, 0, 0, NULL, NULL, 0 );
@@ -118,7 +185,8 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
         std::string alias = msg.url.substr ( index, msg.url.size() - index );
         std::string header = "HTTP/1.1 204 No Content\r\n"
                              "Connection: keep-alive\r\n"
-                             "Content-Length: 0\r\n" 
+                             "Content-Length: 0\r\n"
+                             "Date: " + getDateNdTime() + "\r\n"
                              "\r\n" ;
         send ( client, header.c_str(), header.size(), 0 );   
     
@@ -233,7 +301,8 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
         std::cout<<"successfully wrote to file"<<std::endl;
         std::string header = "HTTP/1.1 201 Created\r\n"    
                              "Content-Length: 0\r\n" 
-                             "Connection: keep-alive\r\n"                                           
+                             "Connection: keep-alive\r\n"       
+                             "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
         send(client, header.c_str(), header.size(), 0); 
                           
@@ -303,8 +372,31 @@ void parseHeaders ( std::string &headers, httpRequest &msg )
 
         index = endLine + 2;
     }
-            
-
         
 }
-    
+std::string pad( int t )
+{
+    std::string s = std::to_string(t);
+    return ( s.size() == 2 )? s: "0" + s; 
+}
+
+std::string getDateNdTime()
+{
+    SYSTEMTIME it;
+    GetSystemTime(&it);
+    static const char* dayNames[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    static const char* monNames[] = {
+            "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+    std::string dayName = dayNames[it.wDayOfWeek];
+    std::string dayNum  = pad(it.wDay);
+    std::string monName = monNames[it.wMonth - 1];
+    std::string year    = std::to_string(it.wYear);
+    std::string hour    = pad(it.wHour);
+    std::string minute  = pad(it.wMinute);
+    std::string second  = pad(it.wSecond);
+    std::string time = dayName + ", " + dayNum + " " + monName + " " + year + " " + hour + ":" + minute + ":" +second + " " + "GMT";
+
+    return time;
+}

@@ -143,8 +143,9 @@ void httpServer::acceptAndServe ()
                 recvBuf[ bytesRec ] = '\0';
                 std::string temp ( recvBuf, bytesRec );
                 accumlate += temp;
+                searchStart = (bytes >= 3)? bytes - 3 : 0;
                 bytes += bytesRec;
-                searchStart = (bytes >= 4)? bytes - 4 : 0;
+
                 // incase /r/n/r/n was send sepreatly
                 
             }

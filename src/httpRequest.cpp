@@ -140,6 +140,7 @@ httpRequest::httpRequest ():
    connection( "open" ),
    contLength( "0" ),
    host ( "none" ),
-   encoding( "whole" )
+   encoding( "whole" ),
+   expect("none")
 {}
 

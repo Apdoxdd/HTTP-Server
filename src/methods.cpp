@@ -338,6 +338,14 @@ void headerLength ( std::string &value, httpRequest &msg )
 
 
 }
+void headerExpect( std::string &value, httpRequest &msg )
+{
+    if ( value == "100-continue" )
+    {
+        msg.expect = value;
+    }
+    
+}
 
 void headerHost ( std::string &value, httpRequest &msg )
 {

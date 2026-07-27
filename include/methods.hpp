@@ -20,6 +20,7 @@ void headerLength( std::string &value, httpRequest &msg );
 void headerHost( std::string &value, httpRequest &msg );
 void headerEncoding( std::string &value, httpRequest &msg);
 
+ void headerExpect( std::string &value, httpRequest &msg);
 
 
 // server helper functions

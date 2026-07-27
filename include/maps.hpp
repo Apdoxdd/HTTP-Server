@@ -37,7 +37,8 @@ inline std::unordered_map<std::string, void(*) (std::string&, httpRequest&)> hea
     {"connection", headerConnection},
     {"content-length", headerLength},
     {"host", headerHost  },
-    {"transfer-encoding", headerEncoding}
+    {"transfer-encoding", headerEncoding},
+    {"expect", headerExpect}
 };
 
 

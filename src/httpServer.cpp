@@ -111,17 +111,28 @@ void httpServer::acceptAndServe ()
             httpRequest msg {};
             std::string accumlate{};
             int bytes {0};
-            while ( accumlate.find("\r\n\r\n") == std::string::npos && client != INVALID_SOCKET)
-            {        
+            size_t searchStart {0};
+            while ( accumlate.find("\r\n\r\n", searchStart) == std::string::npos && client != INVALID_SOCKET)
+            {       
                 char recvBuf [4097] {};
                 int bytesRec = recv( client, recvBuf, 4096, 0 );
-                if ( bytesRec <= 0) 
+                
+                if ( bytesRec == 0 )
                 {
-                    std::cout<<"Error overflow in the recived request"<<std::endl;
+                    std::cout << "Client closed connection" << std::endl;
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
                 }
+                else if ( bytesRec < 0 )
+                {
+                     int err = WSAGetLastError();
+                     std::cout << "recv() failed, WSA error: " << err << std::endl;
+                     closesocket(client);   
+                     client = INVALID_SOCKET;
+                     break;
+                }
+
                 if ( accumlate.size() > 125000 )
                 {
                     HTTP_ERROR(400, client);
@@ -133,6 +144,8 @@ void httpServer::acceptAndServe ()
                 std::string temp ( recvBuf, bytesRec );
                 accumlate += temp;
                 bytes += bytesRec;
+                searchStart = (bytes >= 4)? bytes - 4 : 0;
+                // incase /r/n/r/n was send sepreatly
                 
             }
             if ( client == INVALID_SOCKET )
@@ -212,6 +225,14 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
                 HTTP_ERROR( 400, client );
                 msg.connection = "close";
                 return false;
+            }
+
+            if ( msg.expect == "100-continue" )
+            {
+                std::string response = "HTTP/1.1 100 Continue\r\n"
+                                       "\r\n";
+                send ( client, response.c_str(), response.size(), 0 );  
+
             }
             return true;
 }

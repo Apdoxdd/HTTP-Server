@@ -16,6 +16,8 @@ private:
     std::string contLength;
     std::string host;
     std::string encoding;
+    std::string expect;
+
 public:
     httpRequest ();
     void extractMethod( std::string& msg );
@@ -42,6 +44,7 @@ friend void headerLength( std::string &value, httpRequest &msg );
 friend void headerHost ( std::string &value, httpRequest &msg );
 friend void headerEncoding( std::string &value, httpRequest &msg);
 
+friend void headerExpect( std::string &value, httpRequest &msg);
 };
 
 

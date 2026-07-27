@@ -341,6 +341,8 @@ void headerLength ( std::string &value, httpRequest &msg )
 
 void headerHost ( std::string &value, httpRequest &msg )
 {
+    if ( msg.host != "none")
+        msg.host = "err";
     msg.host = value;
 }
 void headerEncoding(std::string &value, httpRequest &msg)

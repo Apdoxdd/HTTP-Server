@@ -207,6 +207,12 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
                 msg.connection = "close";
                 return false;
             }
+            else if ( msg.host == "err" )
+            {
+                HTTP_ERROR( 400, client );
+                msg.connection = "close";
+                return false;
+            }
             return true;
 }
 

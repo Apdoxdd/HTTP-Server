@@ -21,8 +21,10 @@ void HTTP_ERROR ( int code, SOCKET &client)
                            "Content-Type: application/json\r\n"
                            "Content-Length: 0\r\n"
                            "Connection: close\r\n"
-                           "Date: " + getDateNdTime() + "\r\n"
-                           "\r\n";
+                           "Date: " + getDateNdTime() + "\r\n";
+    if ( code == 405 )
+        response += "Allow: GET, POST, HEAD, PUT\r\n";
+    response += "\r\n\r\n";
     send ( client, response.c_str(), response.size(), 0 );  
 }
 

@@ -16,7 +16,7 @@
 void HTTP_ERROR ( int code, SOCKET &client)
 {
     std::string codeStr = std::to_string ( code );
-    std::string status  = erros [ code ];
+    std::string status  = erros.at( code );
     std::string response = "HTTP/1.1 "+codeStr+status+"\r\n"
                            "Content-Type: application/json\r\n"
                            "Content-Length: 0\r\n"
@@ -222,7 +222,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
         msg.connection = "close";
         return;
     }
-    if ( value > 1073741824 )
+    if ( value > 1073741824 ) //1GB
     {
 
 

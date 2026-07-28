@@ -14,7 +14,7 @@
 #include <thread>
 #include <filesystem>
 #include <windows.h>
-
+#include <chrono>
 
 httpServer::httpServer()
 {
@@ -114,6 +114,8 @@ void httpServer::acceptAndServe ()
             std::string accumlate{};
             int bytes {0};
             size_t searchStart {0};
+            auto start = std::chrono::high_resolution_clock::now();
+            
             while ( accumlate.find("\r\n\r\n", searchStart) == std::string::npos && client != INVALID_SOCKET)
             {       
                 char recvBuf [4097] {};
@@ -147,8 +149,19 @@ void httpServer::acceptAndServe ()
                 accumlate += temp;
                 searchStart = (bytes >= 3)? bytes - 3 : 0;
                 bytes += bytesRec;
-
+                
                 // incase /r/n/r/n was send sepreatly
+
+                auto end = std::chrono::high_resolution_clock::now();
+                auto duration = duration_cast<std::chrono::microseconds>(end - start);
+                if ( duration > std::chrono::seconds(30) )
+                {
+                    HTTP_ERROR(400,client);
+                    closesocket(client);
+                    client = INVALID_SOCKET;
+                    break;
+                }
+
                 
             }
             if ( client == INVALID_SOCKET )

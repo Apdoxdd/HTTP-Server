@@ -11,7 +11,7 @@
 #include <string>
 #include <fileapi.h>
 #include <winnt.h>
-
+#include <chrono>
 
 void HTTP_ERROR ( int code, SOCKET &client)
 {
@@ -280,8 +280,15 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
     int bufferSize = std::min<int>( 32000, remainBytes );
     char* buffer = new char [ bufferSize ];
     bytesWritten = 0;
+    auto start = std::chrono::high_resolution_clock::now();
     while ( bytesWritten < remainBytes )
     {
+        if ( client == INVALID_SOCKET )
+        {
+                CloseHandle(hFile);
+                delete[] buffer;
+                return;
+        }
         int recBytes = recv( client, buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ), 0 );
         if ( recBytes <= 0)
         {
@@ -308,6 +315,16 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
             }
             bytesWritten += oneCallBytes;
             currentWrittenBytes += oneCallBytes;
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = duration_cast<std::chrono::milliseconds>(end - start);
+            if ( duration > std::chrono::minutes(7) )
+            {
+                std::cout<<"Error exceeded the maximum time to recv the file or write to disk"<<std::endl;
+                HTTP_ERROR ( 500, client );
+                CloseHandle( hFile );
+                delete [] buffer;
+                return;
+            }
         }
     }
         std::cout<<"successfully wrote to file"<<std::endl;

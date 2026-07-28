@@ -23,7 +23,7 @@ void HTTP_ERROR ( int code, SOCKET &client)
                            "Connection: close\r\n"
                            "Date: " + getDateNdTime() + "\r\n";
     if ( code == 405 )
-        response += "Allow: GET, POST, HEAD, PUT\r\n";
+        response += "Allow: GET, POST, HEAD, PUT, DELETE\r\n";
     response += "\r\n\r\n";
     send ( client, response.c_str(), response.size(), 0 );  
 }
@@ -352,7 +352,10 @@ void headerExpect( std::string &value, httpRequest &msg )
 void headerHost ( std::string &value, httpRequest &msg )
 {
     if ( msg.host != "none")
+    { 
         msg.host = "err";
+        return;
+    }
     msg.host = value;
 }
 void headerEncoding(std::string &value, httpRequest &msg)

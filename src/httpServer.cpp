@@ -99,6 +99,8 @@ void httpServer::acceptAndServe ()
     while ( true )
     {
         SOCKET client = accept ( server, NULL, NULL );
+        DWORD timeout = 8000;
+        setsockopt( client, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof(timeout) );
         if ( client == INVALID_SOCKET )
             continue;
         // place holder for when i spwan a new thread

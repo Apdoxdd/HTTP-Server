@@ -12,6 +12,7 @@ void HTTP_GET( httpRequest &msg, SOCKET& client, std::string& path );
 void HTTP_DELETE( httpRequest &msg, SOCKET& client, std::string& path );
 void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path );
 void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path );
+void HTTP_POST( httpRequest &msg, SOCKET& client, std::string& path );
 
 // headers the server supports
 void parseHeaders ( std::string &headers, httpRequest &msg );

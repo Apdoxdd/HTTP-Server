@@ -10,6 +10,7 @@
 #include <charconv>
 #include <string>
 #include <fileapi.h>
+#include <winerror.h>
 #include <winnt.h>
 #include <chrono>
 
@@ -332,6 +333,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Content-Length: 0\r\n" 
                              "Connection: keep-alive\r\n"       
                              "Date: " + getDateNdTime() + "\r\n"
+                             "Location: " + msg.url + "\r\n"
                              "\r\n";
         send(client, header.c_str(), header.size(), 0); 
                           
@@ -340,6 +342,150 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
 
 
 }
+
+void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
+{
+    
+    if ( msg.url == "--" )
+    {
+        HTTP_ERROR( 400, client );
+        msg.connection = "close";
+        return;
+    }
+    int value {};
+    auto result = std::from_chars (msg.contLength.data(), msg.contLength.data() + msg.contLength.size(), value);
+    if ( result.ec != std::errc{} || value < ( int ) msg.body.size()  ) // 1GB limit
+    {
+        
+        std::cout<<"Invalid or missing Content-Length"<<std::endl;
+        HTTP_ERROR ( 400, client );
+        msg.connection = "close";
+        return;
+    }
+    if ( value > 1073741824 ) //1GB
+    {
+
+
+        std::cout<<"Content too large"<<std::endl;
+        HTTP_ERROR ( 413, client );
+        msg.connection = "close";
+        return;
+    }
+
+    std::string fullPath = path + msg.url;
+    LPCSTR file = fullPath.c_str();
+
+    HANDLE hFile = CreateFile(
+            file,
+            FILE_APPEND_DATA,
+            0,
+            NULL,
+            OPEN_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL
+            );
+
+    bool alreadyExist = ( GetLastError() == ERROR_ALREADY_EXISTS );
+    if ( hFile == INVALID_HANDLE_VALUE )
+    {
+        std::cout<<"Error accessing file, code: "<<GetLastError()<<std::endl;
+        HTTP_ERROR( 500, client );
+
+        msg.connection = "close";
+        return ;
+    }
+    else 
+    {
+        std::cout<<"File accessed successfully"<<std::endl;
+
+    }
+
+    int code = ( alreadyExist == true )? 200 : 201;
+    std::string codeStr = std::to_string ( code );
+    std::string status  = (code == 201)? " Created" : " OK";
+    std::string location = ( code == 201 )? ("Location: " + msg.url + "\r\n") : "";
+    DWORD bytesToWrite = (DWORD) msg.body.size();
+    DWORD bytesWritten = 0;
+    while ( bytesWritten < bytesToWrite )
+    {
+        DWORD currentWrittenBytes = 0;
+        bool res = WriteFile( hFile, msg.body.c_str() + bytesWritten,bytesToWrite - bytesWritten ,&currentWrittenBytes, 0 );
+        if ( !res)
+        {
+            std::cout<<"Error writting to file, code: "<<GetLastError()<<std::endl;
+            HTTP_ERROR( 500, client );
+            msg.connection = "close";
+            CloseHandle ( hFile );
+            return;
+        }
+        bytesWritten += currentWrittenBytes;
+    }
+    int remainBytes = value - (int) msg.body.size();
+    int bufferSize = std::min<int>( 32000, remainBytes );
+    char* buffer = new char [ bufferSize ];
+    bytesWritten = 0;
+    auto start = std::chrono::high_resolution_clock::now();
+    while ( bytesWritten < remainBytes )
+    {
+        if ( client == INVALID_SOCKET )
+        {
+                CloseHandle(hFile);
+                delete[] buffer;
+                return;
+        }
+        int recBytes = recv( client, buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ), 0 );
+        if ( recBytes <= 0)
+        {
+            std::cout<<"Premature end of connection while writing to file, code: "<<WSAGetLastError()<<std::endl;
+            HTTP_ERROR(  500, client );
+            msg.connection = "close";
+            CloseHandle ( hFile );
+            delete [] buffer;
+            return;
+        }
+        DWORD currentWrittenBytes = 0;
+        while ( currentWrittenBytes < recBytes )
+        {
+            DWORD oneCallBytes = 0;
+            bool success = WriteFile( hFile, buffer + currentWrittenBytes, recBytes - currentWrittenBytes, &oneCallBytes, 0 );
+            if ( !success )
+            {
+                std::cout<<"Error Writing to file, code: "<<GetLastError()<<std::endl;
+                HTTP_ERROR ( 500, client );
+                CloseHandle( hFile );
+                delete [] buffer;
+                return;
+
+            }
+            bytesWritten += oneCallBytes;
+            currentWrittenBytes += oneCallBytes;
+            auto end = std::chrono::high_resolution_clock::now();
+            auto duration = duration_cast<std::chrono::milliseconds>(end - start);
+            if ( duration > std::chrono::minutes(7) )
+            {
+                std::cout<<"Error exceeded the maximum time to recv the file or write to disk"<<std::endl;
+                HTTP_ERROR ( 500, client );
+                CloseHandle( hFile );
+                delete [] buffer;
+                return;
+            }
+        }
+    }
+        std::cout<<"successfully wrote to file"<<std::endl;
+        std::string header = "HTTP/1.1 "+codeStr+status+"\r\n"
+                             +location+
+                             "Content-Length: 0\r\n" 
+                             "Connection: keep-alive\r\n"       
+                             "Date: " + getDateNdTime() + "\r\n"
+                             "\r\n";
+        send(client, header.c_str(), header.size(), 0); 
+                          
+        delete [] buffer;
+        CloseHandle ( hFile );
+
+
+}
+
 void headerConnection ( std::string &value, httpRequest &msg )
 { 
     ( value == "close" )?

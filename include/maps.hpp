@@ -30,7 +30,8 @@ inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::str
     {"GET",     HTTP_GET},
     {"DELETE",  HTTP_DELETE},
     {"PUT",     HTTP_PUT},
-    {"HEAD",    HTTP_HEAD}
+    {"HEAD",    HTTP_HEAD},
+    {"POST",    HTTP_POST}
 };
 
 inline std::unordered_map<std::string, void(*) (std::string&, httpRequest&)> headerMap {

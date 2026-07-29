@@ -3,6 +3,8 @@
 
 #include "../include/httpRequest.hpp"
 #include <string>
+#include <unordered_set>
+#include <mutex>
 #include <unordered_map>
 #include "methods.hpp"
 
@@ -10,9 +12,34 @@
 // and stl by default supports multiple concerent reads
 
 inline std::unordered_map <std::string,std::string> conType = {
+    //text  and markup
         {"html","text/html"},
+        {"htm","text/html"},
         {"txt","text/plain"},
+        {"css","text/css"},
+        {"csv","text/csv"},
+        {"xml","application/xml"},
+
+        // scripts and data
+        {"js","application/javascript"},
+        {"json","application/json"},
+
+        // imgages 
         {"jpg","image/jpeg"},
+        {"jpeg","image/jpeg"},
+        {"png","image/png"},
+        {"gif","image/gif"},
+        {"svg","image/svg+xml"},
+        {"webp","image/webp"},
+
+        //documents
+        {"pdf","application/pdf"},
+
+        //audio and video
+        {"mp3","audio/mpeg"},
+        {"mp4","video/mp4"},
+        {"wav","audio/wav"}
+
     };
 
 

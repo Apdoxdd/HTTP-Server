@@ -57,14 +57,10 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path , httpServer
     }
     else 
     {
-        
-        if ( fileLocks.find( msg.url ) == fileLocks.end() )
-        {
-            HTTP_ERROR( 404, client );
-            msg.connection = "close ";
-            return;
-        }
-        std::shared_lock<std::shared_mutex>lk( fileLocks.at( msg.url) );
+        locksMtx.lock();
+        auto& mtx = fileLocks[ msg.url ];
+        locksMtx.unlock();
+        std::shared_lock<std::shared_mutex>lk(mtx);
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
         size_t index = msg.url.find( '.' );
@@ -129,13 +125,11 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path, httpServer&
     }
     else 
     {
-        if ( fileLocks.find( msg.url ) == fileLocks.end() )
-        {
-            HTTP_ERROR( 404, client );
-            msg.connection = "close ";
-            return;
-        }
-        std::shared_lock<std::shared_mutex>lk( fileLocks.at( msg.url) );
+        
+        locksMtx.lock();
+        auto& mtx = fileLocks[ msg.url ];
+        locksMtx.unlock();
+        std::shared_lock<std::shared_mutex>lk(mtx);
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
         size_t index = msg.url.find( '.' );
@@ -197,13 +191,12 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path , httpSer
     
     std::string fullPath = path  + msg.url;
     LPCSTR file = fullPath.c_str();
-    if ( fileLocks.find( msg.url ) == fileLocks.end() )
-    {
-        HTTP_ERROR( 404, client );
-        msg.connection = "close ";
-        return;
-    }
-    std::lock_guard<std::shared_mutex>lk( fileLocks.at( msg.url) );
+    
+    
+    locksMtx.lock();
+    auto& mtx = fileLocks[ msg.url ];
+    locksMtx.unlock();
+    std::lock_guard<std::shared_mutex>lk(mtx);
 
     if ( DeleteFile( file ) )
     {
@@ -258,6 +251,10 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path , httpServer
         return;
     }
 
+    locksMtx.lock();
+    auto& mtx = fileLocks[ msg.url ];
+    locksMtx.unlock();
+    std::lock_guard<std::shared_mutex>lk(mtx);
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 
@@ -395,6 +392,10 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path , httpServer
         return;
     }
 
+    locksMtx.lock();
+    auto& mtx = fileLocks[ msg.url ];
+    locksMtx.unlock();
+    std::lock_guard<std::shared_mutex>lk(mtx);
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 
@@ -430,13 +431,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path , httpServer
     DWORD bytesToWrite = (DWORD) msg.body.size();
     DWORD bytesWritten = 0;
 
-    if ( fileLocks.find( msg.url ) == fileLocks.end() )
-    {
-        HTTP_ERROR( 404, client );
-        msg.connection = "close ";
-        return;
-    }
-    std::lock_guard<std::shared_mutex>lk( fileLocks.at( msg.url) );
+    
     while ( bytesWritten < bytesToWrite )
     {
         DWORD currentWrittenBytes = 0;

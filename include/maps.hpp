@@ -42,7 +42,7 @@ inline std::unordered_map <std::string,std::string> conType = {
         {"wav","audio/wav"}
 
     };
-inline std::mutex sysFilesMutx;
+inline std::mutex locksMtx;
 
 inline std::unordered_map<std::string, std::shared_mutex> fileLocks { 
 

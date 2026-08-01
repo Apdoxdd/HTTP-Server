@@ -38,7 +38,12 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path , httpServer
         msg.connection = "close";
         return;
     }
-
+    std::shared_mutex* mtxPtr;
+       {
+            std::lock_guard<std::mutex> guard(locksMtx);
+            mtxPtr = &fileLocks[ msg.url ];
+        }
+    std::shared_lock<std::shared_mutex> lk(*mtxPtr);
     HANDLE hFile = CreateFile(
             (path + msg.url ).c_str(),
             GENERIC_READ,
@@ -57,10 +62,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path , httpServer
     }
     else 
     {
-        locksMtx.lock();
-        auto& mtx = fileLocks[ msg.url ];
-        locksMtx.unlock();
-        std::shared_lock<std::shared_mutex>lk(mtx);
+        
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
         size_t index = msg.url.find( '.' );
@@ -107,6 +109,13 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path, httpServer&
         msg.connection = "close";
         return;
     }
+
+    std::shared_mutex* mtxPtr;
+       {
+            std::lock_guard<std::mutex> guard(locksMtx);
+            mtxPtr = &fileLocks[ msg.url ];
+        }
+    std::shared_lock<std::shared_mutex> lk(*mtxPtr);
     HANDLE hFile = CreateFile(
             (path + msg.url ).c_str(),
             GENERIC_READ,
@@ -126,10 +135,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path, httpServer&
     else 
     {
         
-        locksMtx.lock();
-        auto& mtx = fileLocks[ msg.url ];
-        locksMtx.unlock();
-        std::shared_lock<std::shared_mutex>lk(mtx);
+        
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
         size_t index = msg.url.find( '.' );
@@ -192,12 +198,13 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path , httpSer
     std::string fullPath = path  + msg.url;
     LPCSTR file = fullPath.c_str();
     
+    std::shared_mutex* mtxPtr;
+       {
+            std::lock_guard<std::mutex> guard(locksMtx);
+            mtxPtr = &fileLocks[ msg.url ];
+        }
+    std::lock_guard<std::shared_mutex> lk(*mtxPtr);
     
-    locksMtx.lock();
-    auto& mtx = fileLocks[ msg.url ];
-    locksMtx.unlock();
-    std::lock_guard<std::shared_mutex>lk(mtx);
-
     if ( DeleteFile( file ) )
     {
         std::cout<<"File deleted successfully "<<std::endl;
@@ -251,13 +258,15 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path , httpServer
         return;
     }
 
-    locksMtx.lock();
-    auto& mtx = fileLocks[ msg.url ];
-    locksMtx.unlock();
-    std::lock_guard<std::shared_mutex>lk(mtx);
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 
+    std::shared_mutex* mtxPtr;
+       {
+            std::lock_guard<std::mutex> guard(locksMtx);
+            mtxPtr = &fileLocks[ msg.url ];
+        }
+    std::lock_guard<std::shared_mutex> lk(*mtxPtr);
     HANDLE hFile = CreateFile(
             file,
             GENERIC_WRITE,
@@ -392,10 +401,12 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path , httpServer
         return;
     }
 
-    locksMtx.lock();
-    auto& mtx = fileLocks[ msg.url ];
-    locksMtx.unlock();
-    std::lock_guard<std::shared_mutex>lk(mtx);
+    std::shared_mutex* mtxPtr;
+       {
+            std::lock_guard<std::mutex> guard(locksMtx);
+            mtxPtr = &fileLocks[ msg.url ];
+        }
+    std::lock_guard<std::shared_mutex> lk(*mtxPtr);
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 

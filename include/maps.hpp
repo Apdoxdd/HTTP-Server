@@ -58,7 +58,7 @@ inline std::unordered_map< int, std::string >erros = {
     { 413, " Content Too Large"}
 };
 
-inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string&, httpServer&)> methodMap {
+inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string& )> methodMap {
     {"GET",     HTTP_GET},
     {"DELETE",  HTTP_DELETE},
     {"PUT",     HTTP_PUT},

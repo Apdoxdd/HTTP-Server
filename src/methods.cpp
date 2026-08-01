@@ -30,7 +30,7 @@ void HTTP_ERROR ( int code, SOCKET &client)
 }
 
 
-void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path , httpServer& server)
+void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
 {
     if ( msg.url == "--" )
     {
@@ -101,7 +101,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path , httpServer
     }
 }
 
-void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path, httpServer& server)
+void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
 {
     if ( msg.url == "--" )
     {
@@ -186,7 +186,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path, httpServer&
     CloseHandle( hFile );
 }
 
-void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path , httpServer& server)
+void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
 {
     if ( msg.url == "--" )
     {
@@ -229,7 +229,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path , httpSer
 }
 
 
-void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path , httpServer& server)
+void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
 {
     
     if ( msg.url == "--" )
@@ -365,14 +365,13 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path , httpServer
                              "Location: " + msg.url + "\r\n"
                              "\r\n";
         send(client, header.c_str(), header.size(), 0); 
-        server.appendFiles( msg.url );
         delete [] buffer;
         CloseHandle ( hFile );
 
 
 }
 
-void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path , httpServer& server)
+void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
 {
     
     if ( msg.url == "--" )

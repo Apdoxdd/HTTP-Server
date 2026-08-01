@@ -6,7 +6,6 @@
 #include <WS2tcpip.h>
 #include <mswsock.h>
 #include <fstream>
-#include <mutex>
 
 class httpServer 
 {
@@ -14,14 +13,10 @@ private:
     std::string contentPath;
     std::fstream serverLog;
     SOCKET server = INVALID_SOCKET;
-    std::streampos lastPos;
-    std::mutex logMtx;
 public:
     bool init( int port = 8080 );
     void acceptAndServe();
     void getRequest( const char* recBuf, httpRequest& msg, int &bytesRec );
-    void loadFiles();
-    void appendFiles( const std::string& );
     void startup ( int port = 8080);
     bool validateRequest( httpRequest& msg, SOCKET& cllient ); 
     httpServer ();

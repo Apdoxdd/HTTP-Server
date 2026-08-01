@@ -5,14 +5,13 @@
 #include <WS2tcpip.h>
 #include <mswsock.h>
 #include "httpRequest.hpp"
-#include "httpServer.hpp"
-// methods the server supports
+// methods the server suppors
 void HTTP_ERROR( int code, SOCKET& client );
-void HTTP_GET( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server );
-void HTTP_DELETE( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server );
-void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server );
-void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path,httpServer& server );
-void HTTP_POST( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server );
+void HTTP_GET( httpRequest &msg, SOCKET& client, std::string& path );
+void HTTP_DELETE( httpRequest &msg, SOCKET& client, std::string& path );
+void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path );
+void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path );
+void HTTP_POST( httpRequest &msg, SOCKET& client, std::string& path );
 
 // headers the server supports
 void parseHeaders ( std::string &headers, httpRequest &msg );

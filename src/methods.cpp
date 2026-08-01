@@ -65,7 +65,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
-        size_t index = msg.url.find( '.' );
+        size_t index = msg.url.rfind( '.' );
         if ( index == std::string::npos )
         {
 
@@ -138,7 +138,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
-        size_t index = msg.url.find( '.' );
+        size_t index = msg.url.rfind( '.' );
         if ( index == std::string::npos )
         {
 
@@ -159,9 +159,6 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
             CloseHandle( hFile );
             return;
 
-        }
-        {
-            std::cout<<"locksSize"<<fileLocks.size()<<std::endl;
         }
        
         std::cout<<alias<<" "<<it->second<<std::endl;

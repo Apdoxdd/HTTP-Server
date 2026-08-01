@@ -30,7 +30,7 @@ void HTTP_ERROR ( int code, SOCKET &client)
 }
 
 
-void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
+void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path , httpServer& server)
 {
     if ( msg.url == "--" )
     {
@@ -57,6 +57,14 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
     }
     else 
     {
+        
+        if ( fileLocks.find( msg.url ) == fileLocks.end() )
+        {
+            HTTP_ERROR( 404, client );
+            msg.connection = "close ";
+            return;
+        }
+        std::shared_lock<std::shared_mutex>lk( fileLocks.at( msg.url) );
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
         size_t index = msg.url.find( '.' );
@@ -95,7 +103,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
     }
 }
 
-void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
+void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path, httpServer& server)
 {
     if ( msg.url == "--" )
     {
@@ -121,6 +129,13 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
     }
     else 
     {
+        if ( fileLocks.find( msg.url ) == fileLocks.end() )
+        {
+            HTTP_ERROR( 404, client );
+            msg.connection = "close ";
+            return;
+        }
+        std::shared_lock<std::shared_mutex>lk( fileLocks.at( msg.url) );
         LARGE_INTEGER fileSize {};
         GetFileSizeEx( hFile , &fileSize );
         size_t index = msg.url.find( '.' );
@@ -135,7 +150,6 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         }
         index++;
         std::string alias = msg.url.substr( index, msg.url.size() - index );
-        
         auto it = conType.find ( alias );
         if ( it == conType.end() )
         {
@@ -146,6 +160,10 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
             return;
 
         }
+        {
+            std::cout<<"locksSize"<<fileLocks.size()<<std::endl;
+        }
+       
         std::cout<<alias<<" "<<it->second<<std::endl;
         std::string dateNdTime = getDateNdTime();
 
@@ -168,7 +186,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
     CloseHandle( hFile );
 }
 
-void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
+void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path , httpServer& server)
 {
     if ( msg.url == "--" )
     {
@@ -179,13 +197,18 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
     
     std::string fullPath = path  + msg.url;
     LPCSTR file = fullPath.c_str();
+    if ( fileLocks.find( msg.url ) == fileLocks.end() )
+    {
+        HTTP_ERROR( 404, client );
+        msg.connection = "close ";
+        return;
+    }
+    std::lock_guard<std::shared_mutex>lk( fileLocks.at( msg.url) );
 
     if ( DeleteFile( file ) )
     {
         std::cout<<"File deleted successfully "<<std::endl;
 
-        size_t index = msg.url.find('.') + 1;
-        std::string alias = msg.url.substr ( index, msg.url.size() - index );
         std::string header = "HTTP/1.1 204 No Content\r\n"
                              "Connection: keep-alive\r\n"
                              "Content-Length: 0\r\n"
@@ -206,7 +229,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
 }
 
 
-void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
+void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path , httpServer& server)
 {
     
     if ( msg.url == "--" )
@@ -336,14 +359,14 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Location: " + msg.url + "\r\n"
                              "\r\n";
         send(client, header.c_str(), header.size(), 0); 
-                          
+        server.appendFiles( msg.url );
         delete [] buffer;
         CloseHandle ( hFile );
 
 
 }
 
-void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
+void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path , httpServer& server)
 {
     
     if ( msg.url == "--" )
@@ -406,6 +429,14 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
     std::string location = ( code == 201 )? ("Location: " + msg.url + "\r\n") : "";
     DWORD bytesToWrite = (DWORD) msg.body.size();
     DWORD bytesWritten = 0;
+
+    if ( fileLocks.find( msg.url ) == fileLocks.end() )
+    {
+        HTTP_ERROR( 404, client );
+        msg.connection = "close ";
+        return;
+    }
+    std::lock_guard<std::shared_mutex>lk( fileLocks.at( msg.url) );
     while ( bytesWritten < bytesToWrite )
     {
         DWORD currentWrittenBytes = 0;

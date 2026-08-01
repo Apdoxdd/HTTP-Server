@@ -23,10 +23,18 @@ httpServer::httpServer()
 
     std::filesystem::path exeDir = std::filesystem::path(buffer).parent_path();
     contentPath = (exeDir  / "../content/").lexically_normal().string();
+    std::string logPath = (exeDir  / "../content/files.log").lexically_normal().string();
+    serverLog.open(logPath, std::ios::in | std::ios::out | std::ios::app);
+    if ( !serverLog.is_open() )
+    {
+        serverLog.open( logPath, std::ios::out | std::ios::app );
+        serverLog.close();
+        serverLog.open( logPath, std::ios::in | std::ios::out | std::ios::app);
+
+    }
+    lastPos = 0;
 
 }
-
-
 
 
 
@@ -92,6 +100,34 @@ void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRe
     if ( msg.version == "HTTP/1.0" )
         msg.connection = "close";
 
+}
+
+void httpServer::loadFiles()
+{
+    serverLog.clear();
+    //removes end of file flags before next read
+    serverLog.seekg( lastPos ); //moves interntal cursor the next pos to read from
+
+    std::string file;
+   while( serverLog >> file )
+   {
+       fileLocks.try_emplace( file );
+       //constructs the value in place inside of maps
+       //since a mtx isnt copyable or shareable
+       lastPos = serverLog.tellg();
+       //tells us the current internal pointer pos
+   }
+   serverLog.clear();
+}
+void httpServer::appendFiles( const std::string& newFile )
+{
+    std::lock_guard<std::mutex> lk( logMtx );
+    serverLog.clear();
+    serverLog.seekp( 0, std::ios::end ); //sets write ptr to a refercene ( second arg ) and offests of it by first arg
+    serverLog<<newFile<<"\n";
+    serverLog.flush();
+
+    loadFiles();
 }
 
 void httpServer::acceptAndServe ()
@@ -175,7 +211,7 @@ void httpServer::acceptAndServe ()
 
             if ( validateRequest( msg, client) ) 
             {
-                methodMap.at( msg.method ) ( msg, client, contentPath );
+                methodMap.at( msg.method ) ( msg, client, contentPath, *this );
             }
             if ( msg.connection == "close" )
             {
@@ -261,6 +297,7 @@ void httpServer::startup( int port )
         std::cout<<"Error initializing the server"<<std::endl;
         return ;
     }
+    loadFiles();
     acceptAndServe();
 
 

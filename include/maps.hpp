@@ -2,8 +2,9 @@
 #define MAPS
 
 #include "../include/httpRequest.hpp"
+#include "../include/httpServer.hpp"
 #include <string>
-#include <unordered_set>
+#include <shared_mutex>
 #include <mutex>
 #include <unordered_map>
 #include "methods.hpp"
@@ -41,7 +42,11 @@ inline std::unordered_map <std::string,std::string> conType = {
         {"wav","audio/wav"}
 
     };
+inline std::mutex sysFilesMutx;
 
+inline std::unordered_map<std::string, std::shared_mutex> fileLocks { 
+
+};
 
 inline std::unordered_map< int, std::string >erros = {
     { 405, " Method Not Allowed" },
@@ -53,7 +58,7 @@ inline std::unordered_map< int, std::string >erros = {
     { 413, " Content Too Large"}
 };
 
-inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string&)> methodMap {
+inline std::unordered_map<std::string, void (*) (httpRequest&, SOCKET&, std::string&, httpServer&)> methodMap {
     {"GET",     HTTP_GET},
     {"DELETE",  HTTP_DELETE},
     {"PUT",     HTTP_PUT},

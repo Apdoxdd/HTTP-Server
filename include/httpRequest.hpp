@@ -4,6 +4,8 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <mswsock.h>
+
+class httpServer;
 class httpRequest 
 {
 private:
@@ -34,11 +36,12 @@ friend class httpServer;
 
 
 friend void HTTP_ERROR( int code, SOCKET& client );
-friend void HTTP_GET( httpRequest &msg, SOCKET& client, std::string& path );
-friend void HTTP_DELETE( httpRequest &msg, SOCKET& client, std::string& path );
-friend void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path );
-friend void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path );
-friend void HTTP_POST( httpRequest &msg, SOCKET& client, std::string& path );
+friend void HTTP_GET( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server);
+friend void HTTP_DELETE( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server);
+friend void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server);
+friend void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server);
+friend void HTTP_POST( httpRequest &msg, SOCKET& client, std::string& path, httpServer& server );
+
 
 friend void headerConnection ( std::string &value, httpRequest &msg );
 friend void headerLength( std::string &value, httpRequest &msg );

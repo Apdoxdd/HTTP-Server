@@ -87,15 +87,24 @@ bool httpServer::init ( int port )
 }
 void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRec )
 {
+    size_t i {0};
     std::string req ( recBuf, bytesRec );
-    msg.extractMethod( req );
-    msg.extractURL( req );
-    msg.extractVersion( req );
-    msg.extractHeaders( req );
+    i = msg.extractMethod( req, i );
+    if ( i == std::string::npos )
+        return;
+    i = msg.extractURL( req, i );
+    if ( i == std::string::npos )
+        return;
+    i = msg.extractVersion( req, i );
+    if ( i == std::string::npos )
+        return;
+    i = msg.extractHeaders( req, i );
+    if ( i == std::string::npos )
+        return;
     std::transform( msg.headers.begin(), msg.headers.end(), msg.headers.begin(), [](unsigned char c)
             {return std::tolower (c);});
     parseHeaders(msg.headers, msg );
-    msg.extractBody( req );
+    i = msg.extractBody( req, i );
     if ( msg.version == "HTTP/1.0" )
         msg.connection = "close";
 

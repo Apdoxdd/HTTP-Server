@@ -2,35 +2,33 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-void httpRequest::extractMethod ( std::string& msg )
+size_t httpRequest::extractMethod ( std::string& msg, size_t lead)
 {
-    size_t end = msg.find( ' ' );
+    size_t end = msg.find( ' ', lead );
     if( end == std::string::npos)
     {
         method = "";
-        return;
+        return end;
     }
-    method = msg.substr( 0, end ); 
+    method = msg.substr( lead, end );
+    return end + 1;
 }
 
 
-void httpRequest::extractURL ( std::string& msg )
+size_t httpRequest::extractURL ( std::string& msg, size_t lead )
 {
-    size_t start = msg.find( ' ' );
-    if( start == std::string::npos )
-    {
-        url = "--";
-        return;
-    }
-    start += 2;
-    size_t end   = msg.find( ' ', start );
+    // GET /index.html
+    //     |
+    //     lead
+    size_t end   = msg.find( ' ', lead );
+    lead++;
     if( end == std::string::npos )
     {
         url = "--";
-        return;
+        return end;
     }
-    url = msg.substr( start, end - start );
-
+    url = msg.substr( lead, end - lead );
+    //windows donest care about casing so thats ok
     std::transform( url.begin(), url.end(), url.begin(), [](unsigned char c)
             {return std::tolower (c);});
     size_t pos = 0;
@@ -45,7 +43,7 @@ void httpRequest::extractURL ( std::string& msg )
         if ( !isAllowed )
             {
                 url = "--";
-                return;
+                return std::string::npos;
             }
             pos += 3;
     }
@@ -63,7 +61,7 @@ void httpRequest::extractURL ( std::string& msg )
     if ( found )
     {
         url = "--";
-        return;
+        return std::string::npos;
     }
     if ( url.empty() )
         url = "index.html";
@@ -74,66 +72,41 @@ void httpRequest::extractURL ( std::string& msg )
                url.substr(0, 2) == "\\\\" || url.back() == '.' || url.back() == ' ' )
         {
             url = "--";
-                return;
+                return std::string::npos;
         }
     }
+    return end + 1;
 }
 
-void httpRequest::extractVersion ( std::string& msg )
+size_t httpRequest::extractVersion ( std::string& msg, size_t lead )
 {
-    size_t start = msg.find( ' ' );
-    if ( start == std::string::npos )
-    {
-        version = "--";
-        return;
-    }
-    start++;
-    start = msg.find ( ' ', start );
-    
-    if ( start == std::string::npos )
-    {
-        version = "--";
-        return;
-    }
-    start++;
-    size_t end = msg.find( "\r\n" );
+    size_t end = msg.find( "\r\n", lead );
 
     if ( end == std::string::npos )
     {
         version = "--";
-        return;
+        return end;
     }
-    version = msg.substr( start, end - start );
+    version = msg.substr( lead, end - lead );
+    return end + 2;
 }
 
-void httpRequest::extractHeaders ( std::string& msg )
+size_t httpRequest::extractHeaders ( std::string& msg, size_t lead)
 {
-    size_t start = msg.find( "\r\n" );
-    
-    if ( start == std::string::npos )
-    {
-        return;
-    }
-    start += 2;
-    size_t end   = msg.find( "\r\n\r\n" );
+    size_t end   = msg.find( "\r\n\r\n", lead );
 
     if ( end == std::string::npos )
     {
-        return;
+        return end;
     }
-    headers = msg.substr( start, end - start + 2 );
+    headers = msg.substr( lead, end - lead + 2 );
+    return end + 4; 
 }
 
-void httpRequest::extractBody ( std::string& msg )
+size_t httpRequest::extractBody ( std::string& msg, size_t lead)
 {
-    size_t start = msg.find( "\r\n\r\n" );
-   
-    if ( start == std::string::npos )
-    {
-        return;
-    }
-    start += 4;
-    body = msg.substr ( start );
+    body = msg.substr ( lead );
+    return 1;
 }
 
 httpRequest::httpRequest ():

@@ -21,11 +21,11 @@ private:
 
 public:
     httpRequest ();
-    void extractMethod( std::string& msg );
-    void extractURL( std::string& msg );
-    void extractVersion( std::string& msg );
-    void extractHeaders( std::string& msg );
-    void extractBody( std::string& msg );
+    size_t extractMethod( std::string& msg, size_t lead = 0);
+    size_t extractURL( std::string& msg, size_t lead );
+    size_t extractVersion( std::string& msg, size_t lead );
+    size_t extractHeaders( std::string& msg, size_t lead );
+    size_t extractBody( std::string& msg, size_t lead);
 
 
 

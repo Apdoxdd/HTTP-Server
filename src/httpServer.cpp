@@ -108,7 +108,7 @@ void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRe
 
 void httpServer::serveRequest( SOCKET client )
 {
-
+    auto timeOut = std::chrono::high_resolution_clock::now();
         while ( true )
         {
 
@@ -179,6 +179,11 @@ void httpServer::serveRequest( SOCKET client )
             {
                 methodMap.at( msg.method ) ( msg, client, contentPath );
             }
+            auto timeOutEnd = std::chrono::high_resolution_clock::now();
+            auto timeOutDur = duration_cast<std::chrono::microseconds>(timeOutEnd - timeOut);
+            if ( timeOutDur >= std::chrono::minutes(10) )
+                msg.connection = "close";
+
             if ( msg.connection == "close" )
             {
                 closesocket( client );

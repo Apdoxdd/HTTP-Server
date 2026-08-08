@@ -10,7 +10,7 @@ size_t httpRequest::extractMethod ( std::string& msg, size_t lead)
         method = "";
         return end;
     }
-    method = msg.substr( lead, end );
+    method = msg.substr( lead, end - lead );
     return end + 1;
 }
 

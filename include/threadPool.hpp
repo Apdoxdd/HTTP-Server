@@ -1,3 +1,6 @@
+#ifndef THREAD_POOL
+#define THREAD_POOL
+
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -23,3 +26,5 @@ public:
     ~threadPool();
 
 };
+
+#endif

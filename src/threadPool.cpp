@@ -5,8 +5,6 @@
 #include <vector>
 #include <queue>
 #include <functional>
-#include <WinSock2.h>
-#include <WS2tcpip.h>
 #include "../include/threadPool.hpp"
 
 

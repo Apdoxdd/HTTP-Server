@@ -101,8 +101,7 @@ void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRe
     i = msg.extractHeaders( req, i );
     if ( i == std::string::npos )
         return;
-    std::transform( msg.headers.begin(), msg.headers.end(), msg.headers.begin(), [](unsigned char c)
-            {return std::tolower (c);});
+
     parseHeaders(msg.headers, msg );
     i = msg.extractBody( req, i );
     if ( msg.version == "HTTP/1.0" )

@@ -521,6 +521,8 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
 
 void headerConnection ( std::string &value, httpRequest &msg )
 { 
+    std::transform( value.begin(), value.end(), value.begin(), [](unsigned char c)
+            {return std::tolower (c);});
     ( value == "close" )?
         msg.connection = "close"
     :
@@ -528,6 +530,8 @@ void headerConnection ( std::string &value, httpRequest &msg )
 }
 void headerLength ( std::string &value, httpRequest &msg )
 {
+    std::transform( value.begin(), value.end(), value.begin(), [](unsigned char c)
+            {return std::tolower (c);});
     if ( msg.contLength == "0" )
 
         msg.contLength = value;
@@ -538,6 +542,8 @@ void headerLength ( std::string &value, httpRequest &msg )
 }
 void headerExpect( std::string &value, httpRequest &msg )
 {
+    std::transform( value.begin(), value.end(), value.begin(), [](unsigned char c)
+            {return std::tolower (c);});
     if ( value == "100-continue" )
     {
         msg.expect = value;
@@ -547,6 +553,8 @@ void headerExpect( std::string &value, httpRequest &msg )
 
 void headerHost ( std::string &value, httpRequest &msg )
 {
+    std::transform( value.begin(), value.end(), value.begin(), [](unsigned char c)
+            {return std::tolower (c);});
     if ( msg.host != "none")
     { 
         msg.host = "err";
@@ -556,6 +564,8 @@ void headerHost ( std::string &value, httpRequest &msg )
 }
 void headerEncoding(std::string &value, httpRequest &msg)
 {
+    std::transform( value.begin(), value.end(), value.begin(), [](unsigned char c)
+            {return std::tolower (c);});
     msg.encoding = value;
 }
 
@@ -582,6 +592,9 @@ void parseHeaders ( std::string &headers, httpRequest &msg )
         while ( valueStart < valueEnd && headers[ valueStart ] == ' ' ) ++valueStart;
         while ( valueEnd   > valueStart && headers[ valueEnd - 1] == ' ' ) --valueEnd;
         std::string value = headers.substr ( valueStart, valueEnd - valueStart );
+        
+    std::transform( type.begin(), type.end(), type.begin(), [](unsigned char c)
+            {return std::tolower (c);});
         if ( headerMap.find( type ) != headerMap.end() )
         {
             

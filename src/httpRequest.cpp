@@ -105,6 +105,11 @@ size_t httpRequest::extractHeaders ( std::string& msg, size_t lead)
 
 size_t httpRequest::extractBody ( std::string& msg, size_t lead)
 {
+    if ( lead == std::string::npos || lead > msg.size() )
+    {
+        body = "";
+        return std::string::npos;
+    }
     body = msg.substr ( lead );
     return 1;
 }

@@ -1,6 +1,5 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-#include <algorithm>
 #include <mswsock.h>
 #include "../include/httpRequest.hpp"
 #include "../include/maps.hpp"
@@ -9,8 +8,6 @@
 #include <errhandlingapi.h>
 #include <string>
 #include <iostream>
-#include <cctype>
-#include <algorithm>
 #include <thread>
 #include <filesystem>
 #include <windows.h>
@@ -109,19 +106,8 @@ void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRe
 
 }
 
-
-void httpServer::acceptAndServe ()
+void httpServer::serveRequest( SOCKET client )
 {
-    while ( true )
-    {
-        SOCKET client = accept ( server, NULL, NULL );
-        if ( client == INVALID_SOCKET )
-            continue;
-        DWORD timeout = 8000;
-        setsockopt( client, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof(timeout) );
-        // place holder for when i spwan a new thread
-        std::thread worker ( [=]() mutable {
-
 
         while ( true )
         {
@@ -201,8 +187,21 @@ void httpServer::acceptAndServe ()
         }
 
 
-                });
-        worker.detach();
+};
+
+
+void httpServer::acceptAndServe ()
+{
+    while ( true )
+    {
+        SOCKET client = accept ( server, NULL, NULL );
+        if ( client == INVALID_SOCKET )
+            continue;
+        DWORD timeout = 8000;
+        setsockopt( client, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof(timeout) );
+        
+        thPool.pushTask( [  client, this ] { this -> serveRequest( client ); });
+
     }
     closesocket( server );
 

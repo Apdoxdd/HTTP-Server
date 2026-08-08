@@ -13,6 +13,7 @@ set(SOURCES
     src/httpRequest.cpp
     src/httpServer.cpp
     src/methods.cpp
+    src/threadPool.cpp
 )
 
 add_executable(httpServer ${SOURCES})

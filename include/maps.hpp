@@ -5,7 +5,7 @@
 #include "../include/httpServer.hpp"
 #include <string>
 #include <shared_mutex>
-#include <mutex>
+#include <array>
 #include <unordered_map>
 #include "methods.hpp"
 
@@ -42,11 +42,16 @@ inline std::unordered_map <std::string,std::string> conType = {
         {"wav","audio/wav"}
 
     };
-inline std::mutex locksMtx;
 
-inline std::unordered_map<std::string, std::shared_mutex> fileLocks { 
+#define locksSize 1024 //power of 2 so that we can use the bit mask trick h % n = h & ( n - 1) which is faster
+inline std::array< std::shared_mutex, locksSize > fileLocks; 
 
-};
+inline std::shared_mutex& lockFor( const std::string& url )
+{
+    size_t index = std::hash<std::string>{}( url );
+    return fileLocks[ index & (locksSize - 1) ];
+}
+
 
 inline std::unordered_map< int, std::string >erros = {
     { 405, " Method Not Allowed" },

@@ -8,6 +8,7 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <charconv>
+#include <shared_mutex>
 #include <string>
 #include <fileapi.h>
 #include <winerror.h>
@@ -38,12 +39,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         msg.connection = "close";
         return;
     }
-    std::shared_mutex* mtxPtr;
-       {
-            std::lock_guard<std::mutex> guard(locksMtx);
-            mtxPtr = &fileLocks[ msg.url ];
-        }
-    std::shared_lock<std::shared_mutex> lk(*mtxPtr);
+    std::shared_lock<std::shared_mutex>lk( lockFor( msg.url ) );
     HANDLE hFile = CreateFile(
             (path + msg.url ).c_str(),
             GENERIC_READ,
@@ -109,13 +105,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         msg.connection = "close";
         return;
     }
-
-    std::shared_mutex* mtxPtr;
-       {
-            std::lock_guard<std::mutex> guard(locksMtx);
-            mtxPtr = &fileLocks[ msg.url ];
-        }
-    std::shared_lock<std::shared_mutex> lk(*mtxPtr);
+    std::shared_lock<std::shared_mutex> lk( lockFor( msg.url ) );
     HANDLE hFile = CreateFile(
             (path + msg.url ).c_str(),
             GENERIC_READ,
@@ -195,12 +185,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
     std::string fullPath = path  + msg.url;
     LPCSTR file = fullPath.c_str();
     
-    std::shared_mutex* mtxPtr;
-       {
-            std::lock_guard<std::mutex> guard(locksMtx);
-            mtxPtr = &fileLocks[ msg.url ];
-        }
-    std::lock_guard<std::shared_mutex> lk(*mtxPtr);
+    std::lock_guard<std::shared_mutex> lk( lockFor (msg.url) );
     
     if ( DeleteFile( file ) )
     {
@@ -258,12 +243,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 
-    std::shared_mutex* mtxPtr;
-       {
-            std::lock_guard<std::mutex> guard(locksMtx);
-            mtxPtr = &fileLocks[ msg.url ];
-        }
-    std::lock_guard<std::shared_mutex> lk(*mtxPtr);
+    std::lock_guard<std::shared_mutex> lk( lockFor( msg.url ) );
     HANDLE hFile = CreateFile(
             file,
             GENERIC_WRITE,
@@ -397,12 +377,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
         return;
     }
 
-    std::shared_mutex* mtxPtr;
-       {
-            std::lock_guard<std::mutex> guard(locksMtx);
-            mtxPtr = &fileLocks[ msg.url ];
-        }
-    std::lock_guard<std::shared_mutex> lk(*mtxPtr);
+    std::lock_guard<std::shared_mutex> lk( lockFor( msg.url ) );
     std::string fullPath = path + msg.url;
     LPCSTR file = fullPath.c_str();
 

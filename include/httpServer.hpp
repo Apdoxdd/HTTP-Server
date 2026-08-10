@@ -4,7 +4,6 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <mswsock.h>
-#include <fstream>
 
 #include "httpRequest.hpp"
 #include "threadPool.hpp"
@@ -14,8 +13,8 @@ class httpServer
 private:
     threadPool thPool;
     std::string contentPath;
-    std::fstream serverLog;
     SOCKET server = INVALID_SOCKET;
+
 public:
     bool init( int port = 8080 );
     void acceptAndServe();

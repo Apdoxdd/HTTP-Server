@@ -14,6 +14,7 @@ set(SOURCES
     src/httpServer.cpp
     src/methods.cpp
     src/threadPool.cpp
+    src/logger.cpp
 )
 
 add_executable(httpServer ${SOURCES})

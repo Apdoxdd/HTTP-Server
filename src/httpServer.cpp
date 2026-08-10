@@ -5,6 +5,8 @@
 #include "../include/maps.hpp"
 #include "methods.hpp"
 #include "../include/httpServer.hpp"
+#include "../include/logger.hpp"
+#include "../include/maps.hpp"
 #include <errhandlingapi.h>
 #include <string>
 #include <iostream>
@@ -12,6 +14,7 @@
 #include <filesystem>
 #include <windows.h>
 #include <chrono>
+#include <thread>
 
 httpServer::httpServer()
 {
@@ -20,19 +23,10 @@ httpServer::httpServer()
 
     std::filesystem::path exeDir = std::filesystem::path(buffer).parent_path();
     contentPath = (exeDir  / "../content/").lexically_normal().string();
-    std::string logPath = (exeDir  / "../content/files.log").lexically_normal().string();
-    serverLog.open(logPath, std::ios::in | std::ios::out | std::ios::app);
-    if ( !serverLog.is_open() )
-    {
-        serverLog.open( logPath, std::ios::out | std::ios::app );
-        serverLog.close();
-        serverLog.open( logPath, std::ios::in | std::ios::out | std::ios::app);
-
-    }
-
+    // exeDir / string is an overload of the '/' operator in the filesystem object that
+    // allows adding names to the filesystem object without complicated functions
+    // lexically normal removes dots in ../../build for example
 }
-
-
 
 
 
@@ -125,15 +119,18 @@ void httpServer::serveRequest( SOCKET client )
                 
                 if ( bytesRec == 0 )
                 {
-                    std::cout << "Client closed connection" << std::endl;
+                    appLogger.pushLog( std::this_thread::get_id(), "Client closed connection" ); 
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
                 }
                 else if ( bytesRec < 0 )
                 {
-                     int err = WSAGetLastError();
-                     std::cout << "recv() failed, WSA error: " << err << std::endl;
+                     int code = WSAGetLastError();
+                     std::string codeStr = std::to_string( code );
+                     std::string log = "recv() failed, WSA error: " ;
+                     log += codeStr;
+                     appLogger.pushLog( std::this_thread::get_id(), log );
                      closesocket(client);   
                      client = INVALID_SOCKET;
                      break;
@@ -142,6 +139,7 @@ void httpServer::serveRequest( SOCKET client )
                 if ( accumlate.size() > 125000 )
                 {
                     HTTP_ERROR(400, client);
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Exceeded max header size", 0 );
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
@@ -159,6 +157,7 @@ void httpServer::serveRequest( SOCKET client )
                 if ( duration > std::chrono::seconds(30) )
                 {
                     HTTP_ERROR(400,client);
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Exceeded max header sending time",0 );
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
@@ -221,44 +220,60 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             if ( msg.version != "HTTP/1.1" && msg.version != "HTTP/1.0" )
             {
                 if ( msg.version == "HTTP/2" || msg.version == "HTTP/3" )
+                {
                     HTTP_ERROR(505, client);
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 505,"Unsupported Version",0 );
+                }
                 else
-                 HTTP_ERROR( 400, client );
-                msg.connection = "close";
-                return false;
+                {
+                    HTTP_ERROR( 400, client );
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Version",0 );
+                    msg.connection = "close";
+                    return false;
+                }
 
             }
             else if ( msg.host == "none" || msg.host == "" )
             {
                 HTTP_ERROR ( 400, client );
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Host",0 );
                 msg.connection = "close";
                 return false;
             }
             else if ( methodCheck == methodMap.end () )
             {
                 HTTP_ERROR( 405, client );
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 405,"Invalid Method",0 );
                 msg.connection = "close";
                 return false;
             }
             else if ( msg.encoding != "whole" )
             {
                 if ( msg.encoding == "chunked" )
+                {
                     HTTP_ERROR( 501, client );
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 501,"Unsupported Encoding",0 );
+                }
                 else
-                 HTTP_ERROR( 400, client );
-                msg.connection = "close";
-                return false;
+                {
+                    HTTP_ERROR( 400, client );
+                    appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Encoding",0 );
+                    msg.connection = "close";
+                    return false;
+                }
 
             }
             else if ( msg.contLength == "err" )
             {
                 HTTP_ERROR( 400, client );
+                appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Content Length",0 );
                 msg.connection = "close";
                 return false;
             }
             else if ( msg.host == "err" )
             {
                 HTTP_ERROR( 400, client );
+                appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Host",0 );
                 msg.connection = "close";
                 return false;
             }

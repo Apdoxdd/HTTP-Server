@@ -39,7 +39,8 @@ inline std::unordered_map <std::string,std::string> conType = {
         //audio and video
         {"mp3","audio/mpeg"},
         {"mp4","video/mp4"},
-        {"wav","audio/wav"}
+        {"wav","audio/wav"},
+        {"mkv","video/x-matroska"}
 
     };
 

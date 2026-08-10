@@ -144,7 +144,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         {
 
             HTTP_ERROR(400, client);
-            appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"invalid URL Structure", 0 );
+            appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid URL Structure", 0 );
             msg.connection = "close";
             CloseHandle( hFile );
             return;

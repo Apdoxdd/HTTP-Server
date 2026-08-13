@@ -46,10 +46,14 @@ void logger::logRelayLoop()
         logCv.wait( lk, [&](){ return !logsQ.empty() || stop; } );
         if ( logsQ.empty() )
             return;
-        auto log = logsQ.front();
-        logsQ.pop();
+        std::string batch {""};
+        while( !logsQ.empty())
+        {
+            batch += logsQ.front();
+            logsQ.pop();
+        }
         lk.unlock();
-        deliverLogBatch( log );
+        deliverLogBatch( batch );
     }
 }
 

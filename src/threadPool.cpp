@@ -10,8 +10,14 @@
 
 threadPool::threadPool(): stop ( false )
 {
-    unsigned int minNum = std::thread::hardware_concurrency();
-    poolSize = ( minNum == 0 )? 2 : minNum;
+    // after testing i found that threads spend most of their time blocked on recv and transfile
+    // since thats the case, its safe to add a few hundred threads to the pool without the worry of
+    // interleaving since the threads spend most of their time waiting instead of doing actual work
+    // to fix that for all we need to use IOCP ( in the future mby )
+    unsigned int minNum = std::thread::hardware_concurrency() * 50;
+    //  after binary searching through threads number of * 100 to *2 , *50 was by far the best performing
+    //  and the one with least interleaving
+    poolSize = ( minNum == 0 )? 100 : minNum;
 
     for ( auto i {0uz}; i < poolSize; ++i )
     {

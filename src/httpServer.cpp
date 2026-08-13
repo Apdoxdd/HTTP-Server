@@ -62,7 +62,10 @@ bool httpServer::init ( int port )
         return 0;
     }
 
-    res = listen ( server, SOMAXCONN );
+    res = listen ( server, -65'536 ); // since SOMAXCONN alone was causing alot of refused requests 
+                                    // the number is negative since the macro SOMA is just inverse of the 
+                                    // number used, so i put it as negative to bypass the need to include 
+                                    // a new header
     if ( res == SOCKET_ERROR )
     {
         std::cout<<"Error at listen(), code: "<<WSAGetLastError()<<std::endl;

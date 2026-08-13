@@ -1,0 +1,31 @@
+when first testing the server with the SOMAXCONN and Thread pool the size of hardwareonly:
+    1) most of the requests were declined on the OS level ( max backlog queue reach )
+    2) I found that the threads spend the majority of their life time waiting instead of doing any actual work
+        since i use blocking recv and Transfile
+
+
+so I bumped up the max backlog queue to 65k connections without touching the threadpool and improved:
+    1) No declined requests on OS level
+    2) Requests were timed out for different reason ( spend too long in the backlog qeueu )
+    3) Threads still spent most of its time waiting on blocking functions
+
+
+Then in addition to the backlog change I increased the threadpool size to a few hundred threads ( reducing interleaving as much as possible )
+
+    1) No delcined reqeust on OS level
+    2) Majority of requests were served correctly
+    3) still a dozen or so were timed out ( sometimes all of them would be served but it would depend on 
+        jammed the cpu of the pc was so it was kinda random )
+    4) max stays at around 19.9 second idk if thats related to a hardware limit or that heys timeout
+
+
+
+
+** things to do:
+    1) test from other pc  ( see does it take internet or not )
+    2) look into how to make the accept loop not 1 thread 
+
+
+
+* tried making the thread pool *100 instead of *50 and it performed worse
+

@@ -28,4 +28,17 @@ Then in addition to the backlog change I increased the threadpool size to a few 
 
 
 * tried making the thread pool *100 instead of *50 and it performed worse
+  2) testing at  n = 500, with different C:
+     at c = 1, c = 50 and whatever it didnt really make a difference, the time for each request stayed  
+     the same and requests / second stayed the same
+
+  3) at c = 6700 or any large numbe, requets/second stayed the same but latency for each request increased
+  4) c=50 → 233 req/sec
+     c=500 (run 1) → 221 req/sec
+     c=500 (run 2) → 228 req/sec
+     c=800 with 800 threads → ~325 req/sec (only mild improvement despite 50x more workers but with *50 worker there were never the issue of requests timing out out of queue so its important)
+
+
+
+***** no disable keep alive we hit 8k requests/second
 

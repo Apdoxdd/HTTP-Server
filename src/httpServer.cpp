@@ -26,11 +26,14 @@ httpServer::httpServer()
     // exeDir / string is an overload of the '/' operator in the filesystem object that
     // allows adding names to the filesystem object without complicated functions
     // lexically normal removes dots in ../../build for example
+    std::string certPath =  (exeDir / "../cert/server.crt").lexically_normal().string();
+    std::string keyPath  = (exeDir / "../cert/server.key").lexically_normal().string();
+    context = createContext( certPath, keyPath );
 }
 
 
 
-bool httpServer::init ( int port )
+bool httpServer::init ( int portHTTP, int portHTTPS )
 {
     WSAData temp;
     int res = WSAStartup( MAKEWORD( 2, 2 ), &temp );
@@ -41,6 +44,7 @@ bool httpServer::init ( int port )
     }
 
     server = socket ( AF_INET, SOCK_STREAM, IPPROTO_TCP );
+    serverTls = socket( AF_INET, SOCK_STREAM, IPPROTO_TCP );
     if ( server == INVALID_SOCKET )
     {
         std::cout<<"Error at socket(), code: "<<WSAGetLastError()<<std::endl;
@@ -50,14 +54,20 @@ bool httpServer::init ( int port )
 
     sockaddr_in serverAD {};
     serverAD.sin_family = AF_INET;
-    serverAD.sin_port   = htons( port );
+    serverAD.sin_port   = htons( portHTTP );
     serverAD.sin_addr.s_addr = INADDR_ANY;
 
+    sockaddr_in serverTlsAD {};
+    serverTlsAD.sin_family = AF_INET;
+    serverTlsAD.sin_port   = htons( portHTTPS );
+    serverTlsAD.sin_addr.s_addr = INADDR_ANY;
     res = bind ( server, (SOCKADDR*) &serverAD, sizeof( serverAD ) );
-    if ( res == SOCKET_ERROR )
+    int resTls = bind ( serverTls, (SOCKADDR*) &serverTlsAD, sizeof( serverTlsAD ) );
+    if ( res == SOCKET_ERROR || resTls == SOCKET_ERROR )
     {
         std::cout<<"Error at bind(), code: "<<WSAGetLastError()<<std::endl;
         closesocket ( server );
+        closesocket ( serverTls );
         WSACleanup();
         return 0;
     }
@@ -65,11 +75,12 @@ bool httpServer::init ( int port )
     res = listen ( server, -65'536 ); // since SOMAXCONN alone was causing alot of refused requests 
                                     // the number is negative since the macro SOMA is just inverse of the 
                                     // number used, so i put it as negative to bypass the need to include 
-                                    // a new header
-    if ( res == SOCKET_ERROR )
+     resTls = listen ( serverTls, -65'536 );                               // a new header
+    if ( res == SOCKET_ERROR || resTls == SOCKET_ERROR )
     {
         std::cout<<"Error at listen(), code: "<<WSAGetLastError()<<std::endl;
         closesocket( server );
+        closesocket( serverTls );
         WSACleanup();
         return 0;
     }
@@ -103,13 +114,13 @@ void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRe
 
 }
 
-void httpServer::serveRequest( SOCKET client )
+void httpServer::serveRequest( SOCKET client, SSL *con )
 {
     auto timeOut = std::chrono::high_resolution_clock::now();
         while ( true )
         {
 
-            httpRequest msg {};
+            httpRequest msg {  con };
             std::string accumlate{};
             int bytes {0};
             size_t searchStart {0};
@@ -118,7 +129,7 @@ void httpServer::serveRequest( SOCKET client )
             while ( accumlate.find("\r\n\r\n", searchStart) == std::string::npos && client != INVALID_SOCKET)
             {       
                 char recvBuf [4097] {};
-                int bytesRec = recv( client, recvBuf, 4096, 0 );
+                int bytesRec = netRecv( client, msg.ssl,recvBuf, 4096 );
                 
                 if ( bytesRec == 0 )
                 {
@@ -196,9 +207,34 @@ void httpServer::serveRequest( SOCKET client )
 
 };
 
+void httpServer::acceptAndServeTls()
+{
+
+    while ( true )
+    {
+        SOCKET client = accept ( server, NULL, NULL );
+        if ( client == INVALID_SOCKET )
+            continue;
+        DWORD timeout = 8000;
+        setsockopt( client, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof(timeout) );
+        SSL *ssl = SSL_new( context );
+        SSL_set_fd( ssl, client );
+
+        if ( SSL_accept( ssl ) <= 0 )
+        {
+            SSL_free(ssl);
+            closesocket(client);
+            continue;
+        }
+        thPool.pushTask( [  client,ssl, this ] { this -> serveRequest( client, ssl ); });
+
+    }
+    closesocket( serverTls );
+}
 
 void httpServer::acceptAndServe ()
 {
+    std::thread tlsWorker( &httpServer::acceptAndServeTls, this );
     while ( true )
     {
         SOCKET client = accept ( server, NULL, NULL );
@@ -207,9 +243,10 @@ void httpServer::acceptAndServe ()
         DWORD timeout = 8000;
         setsockopt( client, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof(timeout) );
         
-        thPool.pushTask( [  client, this ] { this -> serveRequest( client ); });
+        thPool.pushTask( [  client, this ] { this -> serveRequest( client, nullptr ); });
 
     }
+    tlsWorker.join();
     closesocket( server );
 
 
@@ -291,10 +328,40 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             return true;
 }
 
-void httpServer::startup( int port )
+SSL_CTX* httpServer::createContext( const std::string &certFile, const std::string &keyFile )
+{
+    const SSL_METHOD *method;
+    // describes general TLS behaviour you will use based on wehthere you are server or client
+    SSL_CTX *context;
+    // SSL_CTX is the TLS context that holds configuration and information that can be shared by multiple TLS connections.
+    method = TLS_server_method();
+    // gets the TLS method for a server endpoint
+    context = SSL_CTX_new( method );
+    // sets up the behaviour and configuration based on you being server or client
+    if ( !context )
+    {
+        std::cout<<"context creation error"<<std::endl;
+        exit( EXIT_FAILURE );
+    }
+    if ( SSL_CTX_use_certificate_file( context, certFile.c_str(), SSL_FILETYPE_PEM  ) <= 0 )
+    {
+        
+        std::cout<<"cert loading error"<<std::endl;
+        exit( EXIT_FAILURE );
+    }
+    if ( SSL_CTX_use_PrivateKey_file( context, keyFile.c_str(), SSL_FILETYPE_PEM  ) <= 0 )
+    {
+        
+        std::cout<<"key loading error"<<std::endl;
+        exit( EXIT_FAILURE );
+    }
+    return context;
+}
+
+void httpServer::startup( int port, int tlsPort )
 {
     //run init, if true run accept and serve()
-    if ( !init( port ) )
+    if ( !init( port, tlsPort ) )
     {
         std::cout<<"Error initializing the server"<<std::endl;
         return ;

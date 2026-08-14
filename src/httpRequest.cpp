@@ -2,6 +2,9 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 size_t httpRequest::extractMethod ( std::string& msg, size_t lead)
 {
     size_t end = msg.find( ' ', lead );
@@ -114,11 +117,13 @@ size_t httpRequest::extractBody ( std::string& msg, size_t lead)
     return 1;
 }
 
-httpRequest::httpRequest ():
+httpRequest::httpRequest ( SSL *conSSL ):
    connection( "open" ),
    contLength( "0" ),
    host ( "none" ),
    encoding( "whole" ),
-   expect("none")
+   expect("none"),
+   ssl( conSSL )
+    
 {}
 

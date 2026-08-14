@@ -3,5 +3,6 @@
 int main ()
 {
     httpServer server;
-    server.startup();
+    server.startup(8080, 4040);
+    // http and https port numbers
 }

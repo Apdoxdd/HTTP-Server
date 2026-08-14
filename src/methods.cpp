@@ -98,7 +98,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
                              "Connection: keep-alive\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
-        send ( client, header.c_str(), header.size(), 0 );
+        netSend( client, msg.ssl, header.c_str(), header.size() );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
     }
 }
@@ -170,11 +170,31 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Connection: keep-alive\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
-        send ( client, header.c_str(), header.size(), 0 );
+        netSend ( client, msg.ssl ,header.c_str(), header.size() );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK",1 );
-
-        bool success = TransmitFile ( client, hFile, 0, 0, NULL, NULL, 0 );
-
+        if ( !msg.ssl )
+        {
+            bool success = TransmitFile ( client, hFile, 0, 0, NULL, NULL, 0 );
+        }
+        else 
+        { 
+            char filebuf [4096];
+            DWORD bytesRead{};
+            while (ReadFile(hFile, filebuf, sizeof(filebuf), &bytesRead, NULL) && bytesRead > 0)
+            {
+                DWORD totalSent { 0 };
+                while ( totalSent < bytesRead )
+                { //since write does not guarntee sending all the bytes 
+                    int sent = SSL_write( msg.ssl, filebuf + totalSent, bytesRead - totalSent );
+                    if ( sent <= 0 )
+                        break;
+                    totalSent += sent;
+                }
+                if ( totalSent < bytesRead )
+                    break;
+                // means sent was <= 0 so we had to leave the connection
+            }
+        }
     }
     CloseHandle( hFile );
 }
@@ -202,7 +222,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Content-Length: 0\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n" ;
-        send ( client, header.c_str(), header.size(), 0 );   
+        netSend ( client, msg.ssl, header.c_str(), header.size() );   
     
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 204,"No Content",1 );
     }
@@ -311,7 +331,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                 delete[] buffer;
                 return;
         }
-        int recBytes = recv( client, buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ), 0 );
+        int recBytes = netRecv( client, msg.ssl,buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ));
         if ( recBytes <= 0)
         {
             
@@ -364,7 +384,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Date: " + getDateNdTime() + "\r\n"
                              "Location: " + msg.url + "\r\n"
                              "\r\n";
-        send(client, header.c_str(), header.size(), 0); 
+        netSend(client, msg.ssl, header.c_str(), header.size() ); 
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 201,"Created", 1 );
         delete [] buffer;
         CloseHandle ( hFile );
@@ -466,7 +486,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
                 delete[] buffer;
                 return;
         }
-        int recBytes = recv( client, buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ), 0 );
+        int recBytes = netRecv( client, msg.ssl ,buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ));
         if ( recBytes <= 0)
         {
             int code = WSAGetLastError();
@@ -518,7 +538,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
                              "Connection: keep-alive\r\n"       
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
-        send(client, header.c_str(), header.size(), 0); 
+        netSend(client, msg.ssl,header.c_str(), header.size() ); 
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, code, status, 1 );
                           
         delete [] buffer;
@@ -640,3 +660,6 @@ std::string getDateNdTime()
 
     return time;
 }
+
+
+

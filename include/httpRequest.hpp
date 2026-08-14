@@ -3,12 +3,9 @@
 #include <string>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-#include <mswsock.h>
-
-
- 
-//#include <openssl/ssl.h>
-//#include <openssl/err.h>
+#include <mswsock.h> 
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 class httpRequest 
 {
@@ -25,7 +22,8 @@ private:
     std::string expect;
 
 public:
-    httpRequest ();
+    SSL *ssl;
+    httpRequest ( SSL *conSSL = nullptr );
     size_t extractMethod( std::string& msg, size_t lead = 0);
     size_t extractURL( std::string& msg, size_t lead );
     size_t extractVersion( std::string& msg, size_t lead );

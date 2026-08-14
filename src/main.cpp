@@ -1,9 +1,7 @@
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <iostream>
+#include "../include/httpServer.hpp"
 
-int main() {
-        SSL_library_init();
-            std::cout << "OpenSSL version: " << OpenSSL_version(OPENSSL_VERSION) << std::endl;
-                return 0;
+int main ()
+{
+    httpServer server;
+    server.startup();
 }

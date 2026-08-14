@@ -5,6 +5,11 @@
 #include <WS2tcpip.h>
 #include <mswsock.h>
 
+
+ 
+//#include <openssl/ssl.h>
+//#include <openssl/err.h>
+
 class httpRequest 
 {
 private:

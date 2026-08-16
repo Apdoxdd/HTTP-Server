@@ -134,6 +134,8 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
                 if ( bytesRec == 0 )
                 {
                     appLogger.pushLog( std::this_thread::get_id(), "Client closed connection" ); 
+                    if ( msg.ssl )
+                        SSL_free( msg.ssl );
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
@@ -145,6 +147,8 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
                      std::string log = "recv() failed, WSA error: " ;
                      log += codeStr;
                      appLogger.pushLog( std::this_thread::get_id(), log );
+                    if ( msg.ssl )
+                        SSL_free( msg.ssl );
                      closesocket(client);   
                      client = INVALID_SOCKET;
                      break;
@@ -152,8 +156,11 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
 
                 if ( accumlate.size() > 125000 )
                 {
-                    HTTP_ERROR(400, client);
+                    
+                    HTTP_ERROR(400, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Exceeded max header size", 0 );
+                    if ( msg.ssl )
+                        SSL_free( msg.ssl );
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
@@ -170,8 +177,10 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
                 auto duration = duration_cast<std::chrono::microseconds>(end - start);
                 if ( duration > std::chrono::seconds(30) )
                 {
-                    HTTP_ERROR(400,client);
+                    HTTP_ERROR( 400,client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Exceeded max header sending time",0 );
+                    if ( msg.ssl )
+                        SSL_free( msg.ssl );
                     closesocket(client);
                     client = INVALID_SOCKET;
                     break;
@@ -199,6 +208,8 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
 
             if ( msg.connection == "close" )
             {
+                    if ( msg.ssl )
+                        SSL_free( msg.ssl );
                 closesocket( client );
                 break;
             }
@@ -212,7 +223,7 @@ void httpServer::acceptAndServeTls()
 
     while ( true )
     {
-        SOCKET client = accept ( server, NULL, NULL );
+        SOCKET client = accept ( serverTls, NULL, NULL );
         if ( client == INVALID_SOCKET )
             continue;
         DWORD timeout = 8000;
@@ -261,12 +272,12 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             {
                 if ( msg.version == "HTTP/2" || msg.version == "HTTP/3" )
                 {
-                    HTTP_ERROR(505, client);
+                    HTTP_ERROR(505, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 505,"Unsupported Version",0 );
                 }
                 else
                 {
-                    HTTP_ERROR( 400, client );
+                    HTTP_ERROR( 400, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Version",0 );
                     msg.connection = "close";
                     return false;
@@ -275,14 +286,14 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             }
             else if ( msg.host == "none" || msg.host == "" )
             {
-                HTTP_ERROR ( 400, client );
+                HTTP_ERROR ( 400, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Host",0 );
                 msg.connection = "close";
                 return false;
             }
             else if ( methodCheck == methodMap.end () )
             {
-                HTTP_ERROR( 405, client );
+                HTTP_ERROR( 405, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 405,"Invalid Method",0 );
                 msg.connection = "close";
                 return false;
@@ -291,12 +302,12 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             {
                 if ( msg.encoding == "chunked" )
                 {
-                    HTTP_ERROR( 501, client );
+                    HTTP_ERROR( 501, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 501,"Unsupported Encoding",0 );
                 }
                 else
                 {
-                    HTTP_ERROR( 400, client );
+                    HTTP_ERROR( 400, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Encoding",0 );
                     msg.connection = "close";
                     return false;
@@ -305,14 +316,14 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             }
             else if ( msg.contLength == "err" )
             {
-                HTTP_ERROR( 400, client );
+                HTTP_ERROR( 400, client, msg.ssl );
                 appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Content Length",0 );
                 msg.connection = "close";
                 return false;
             }
             else if ( msg.host == "err" )
             {
-                HTTP_ERROR( 400, client );
+                HTTP_ERROR( 400, client, msg.ssl );
                 appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Host",0 );
                 msg.connection = "close";
                 return false;

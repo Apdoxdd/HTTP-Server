@@ -6,7 +6,7 @@
 #include <mswsock.h>
 #include "httpRequest.hpp"
 // methods the server suppors
-void HTTP_ERROR( int code, SOCKET& client );
+void HTTP_ERROR( int code, SOCKET& client, SSL *ssl = nullptr );
 void HTTP_GET( httpRequest &msg, SOCKET& client, std::string& path );
 void HTTP_DELETE( httpRequest &msg, SOCKET& client, std::string& path );
 void HTTP_PUT( httpRequest &msg, SOCKET& client, std::string& path );

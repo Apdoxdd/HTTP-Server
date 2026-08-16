@@ -27,6 +27,12 @@ public:
     size_t extractHeaders( std::string& msg, size_t lead );
     size_t extractBody( std::string& msg, size_t lead);
 
+    // testing functions, not used in src
+    std::string getMethod();
+    std::string getURL();
+    std::string getVersion();
+    std::string getHeaders();
+    std::string getBody();
 
 
 

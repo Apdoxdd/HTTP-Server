@@ -122,3 +122,27 @@ httpRequest::httpRequest ():
    expect("none")
 {}
 
+std::string httpRequest::getMethod()
+{
+    return method;
+}
+
+std::string httpRequest::getURL()
+{
+    return url;
+}
+
+std::string httpRequest::getVersion()
+{
+    return version;
+}
+
+std::string httpRequest::getHeaders()
+{
+    return headers;
+}
+
+std::string httpRequest::getBody()
+{
+    return body;
+}

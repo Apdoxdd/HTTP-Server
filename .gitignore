@@ -1,3 +1,4 @@
+cert/
 build/
 .cache/
 *.exe

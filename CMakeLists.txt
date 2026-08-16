@@ -14,8 +14,17 @@ set(SOURCES
     src/httpServer.cpp
     src/methods.cpp
     src/threadPool.cpp
-    src/logger.cpp
-)
+    src/logger.cpp)
 
 add_executable(httpServer ${SOURCES})
 target_link_libraries(httpServer ws2_32 mswsock)
+
+
+                        # Unit tests
+enable_testing()
+
+add_executable(httpServerTests
+               tests/unit/test_httpRequest.cpp
+                src/httpRequest.cpp)
+
+add_test(NAME httpServerTests COMMAND httpServerTests)

@@ -206,7 +206,9 @@ void httpServer::acceptAndServe ()
             continue;
         DWORD timeout = 8000;
         setsockopt( client, SOL_SOCKET, SO_RCVTIMEO, (const char*) &timeout, sizeof(timeout) );
-        
+        BOOL nodelay = TRUE;
+        // removes Nagle's algorithim , waits around 40ms to get an ACK, depreceted
+        setsockopt( client, IPPROTO_TCP, TCP_NODELAY, (const char*) &nodelay, sizeof(nodelay) );
         thPool.pushTask( [  client, this ] { this -> serveRequest( client ); });
 
     }

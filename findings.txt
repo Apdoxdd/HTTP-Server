@@ -40,5 +40,12 @@ Then in addition to the backlog change I increased the threadpool size to a few 
 
 
 
-***** no disable keep alive we hit 8k requests/second
+***** no disable keep alive we hit 10k requests/second
+******************************************************************************
+
+* ill test first disabling the logger since its an operation wide mutex to push into it and see if we 
+    make it past 10k/sec
+
+* if it doesnt work ill also disable the write file for get and make it return a string
+
 

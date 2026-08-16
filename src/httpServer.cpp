@@ -116,6 +116,16 @@ void httpServer::getRequest ( const char* recBuf, httpRequest &msg, int &bytesRe
 
 void httpServer::serveRequest( SOCKET client, SSL *con )
 {
+    if ( con )
+    {
+
+        if ( SSL_accept( con ) <= 0 )
+        {
+            SSL_free( con );
+            closesocket(client);
+            return;
+        }
+    }
     auto timeOut = std::chrono::high_resolution_clock::now();
         while ( true )
         {
@@ -231,12 +241,6 @@ void httpServer::acceptAndServeTls()
         SSL *ssl = SSL_new( context );
         SSL_set_fd( ssl, client );
 
-        if ( SSL_accept( ssl ) <= 0 )
-        {
-            SSL_free(ssl);
-            closesocket(client);
-            continue;
-        }
         thPool.pushTask( [  client,ssl, this ] { this -> serveRequest( client, ssl ); });
 
     }

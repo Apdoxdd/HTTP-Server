@@ -104,6 +104,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         netSend( client, msg.ssl, header.c_str(), header.size() );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
     }
+    CloseHandle( hFile );
 }
 
 void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )

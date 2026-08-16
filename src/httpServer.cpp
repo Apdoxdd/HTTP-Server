@@ -333,7 +333,7 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
             {
                 std::string response = "HTTP/1.1 100 Continue\r\n"
                                        "\r\n";
-                send ( client, response.c_str(), response.size(), 0 );  
+                netSend( client, msg.ssl,response.c_str(), response.size() );  
 
             }
             return true;

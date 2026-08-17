@@ -1,5 +1,6 @@
 cert/
 build/
+cert/
 .cache/
 *.exe
 *.exe

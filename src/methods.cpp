@@ -16,7 +16,7 @@
 #include <winnt.h>
 #include <chrono>
 
-void HTTP_ERROR ( int code, SOCKET &client)
+void HTTP_ERROR ( int code, SOCKET &client, SSL *ssl )
 {
     std::string codeStr = std::to_string ( code );
     std::string status  = erros.at( code );
@@ -28,7 +28,10 @@ void HTTP_ERROR ( int code, SOCKET &client)
     if ( code == 405 )
         response += "Allow: GET, POST, HEAD, PUT, DELETE\r\n";
     response += "\r\n\r\n";
-    send ( client, response.c_str(), response.size(), 0 );  
+    if ( ssl )
+        SSL_write( ssl, response.c_str(), response.size() );
+    else
+        send ( client, response.c_str(), response.size(), 0 );  
 }
 
 
@@ -36,7 +39,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
 {
     if ( msg.url == "--" )
     {
-        HTTP_ERROR( 400, client );
+        HTTP_ERROR( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid URL",0 );
         msg.connection = "close";
         return;
@@ -57,7 +60,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         std::string codeStr = std::to_string( code );
         std::string log = "Error accessing file or it doesnt exist, code: ";
         log += codeStr;
-        HTTP_ERROR ( 404, client );
+        HTTP_ERROR ( 404, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 404, log,0 );
         msg.connection = "close";
         return;
@@ -71,7 +74,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         if ( index == std::string::npos )
         {
 
-            HTTP_ERROR(400, client);
+            HTTP_ERROR(400, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid URL Structure" ,0 );
             msg.connection = "close";
             CloseHandle( hFile );
@@ -83,7 +86,7 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         auto it = conType.find ( alias );
         if ( it == conType.end() )
         {
-            HTTP_ERROR(400, client);
+            HTTP_ERROR(400, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Conetent Type",0 );
             msg.connection = "close";
             CloseHandle( hFile );
@@ -98,16 +101,17 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
                              "Connection: keep-alive\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
-        send ( client, header.c_str(), header.size(), 0 );
+        netSend( client, msg.ssl, header.c_str(), header.size() );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
     }
+    CloseHandle( hFile );
 }
 
 void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
 {
     if ( msg.url == "--" )
     {
-        HTTP_ERROR( 400, client );
+        HTTP_ERROR( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invlaid URL", 0 );
         msg.connection = "close";
         return;
@@ -128,7 +132,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         std::string codeStr = std::to_string( code );
         std::string log = "Error accessing file or it doesnt exist, code: ";
         log += codeStr;
-        HTTP_ERROR ( 404, client );
+        HTTP_ERROR ( 404, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 404, log, 0 );
         msg.connection = "close";
         return;
@@ -143,7 +147,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         if ( index == std::string::npos )
         {
 
-            HTTP_ERROR(400, client);
+            HTTP_ERROR( 400, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid URL Structure", 0 );
             msg.connection = "close";
             CloseHandle( hFile );
@@ -154,7 +158,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         auto it = conType.find ( alias );
         if ( it == conType.end() )
         {
-            HTTP_ERROR(400, client);
+            HTTP_ERROR( 400, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid Content Type" ,0 );
             msg.connection = "close";
             CloseHandle( hFile );
@@ -170,11 +174,31 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Connection: keep-alive\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
-        send ( client, header.c_str(), header.size(), 0 );
+        netSend ( client, msg.ssl ,header.c_str(), header.size() );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK",1 );
-
-        bool success = TransmitFile ( client, hFile, 0, 0, NULL, NULL, 0 );
-
+        if ( !msg.ssl )
+        {
+            bool success = TransmitFile ( client, hFile, 0, 0, NULL, NULL, 0 );
+        }
+        else 
+        { 
+            char filebuf [4096];
+            DWORD bytesRead{};
+            while (ReadFile(hFile, filebuf, sizeof(filebuf), &bytesRead, NULL) && bytesRead > 0)
+            {
+                DWORD totalSent { 0 };
+                while ( totalSent < bytesRead )
+                { //since write does not guarntee sending all the bytes 
+                    int sent = SSL_write( msg.ssl, filebuf + totalSent, bytesRead - totalSent );
+                    if ( sent <= 0 )
+                        break;
+                    totalSent += sent;
+                }
+                if ( totalSent < bytesRead )
+                    break;
+                // means sent was <= 0 so we had to leave the connection
+            }
+        }
     }
     CloseHandle( hFile );
 }
@@ -183,7 +207,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
 {
     if ( msg.url == "--" )
     {
-        HTTP_ERROR( 400, client );
+        HTTP_ERROR( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid URL", 0 );
         msg.connection = "close";
         return;
@@ -202,7 +226,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Content-Length: 0\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n" ;
-        send ( client, header.c_str(), header.size(), 0 );   
+        netSend ( client, msg.ssl, header.c_str(), header.size() );   
     
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 204,"No Content",1 );
     }
@@ -212,7 +236,7 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
         std::string codeStr = std::to_string( code );
         std::string log = "failed to delete file, code: ";
         log += codeStr;
-        HTTP_ERROR ( 404, client );
+        HTTP_ERROR ( 404, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 404, log,0 );
         msg.connection = "close";
     }
@@ -227,7 +251,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
     
     if ( msg.url == "--" )
     {
-        HTTP_ERROR( 400, client );
+        HTTP_ERROR( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400, "Invalid URL",0 );
         msg.connection = "close";
         return;
@@ -237,7 +261,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
     if ( result.ec != std::errc{} || value < ( int ) msg.body.size()  ) // 1GB limit
     {
         
-        HTTP_ERROR ( 400, client );
+        HTTP_ERROR ( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid or missing Content-Length", 0 );
         msg.connection = "close";
         return;
@@ -246,7 +270,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
     {
 
 
-        HTTP_ERROR ( 413, client );
+        HTTP_ERROR ( 413, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 413,"Content too large", 0 );
         msg.connection = "close";
         return;
@@ -271,7 +295,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
         std::string codeStr = std::to_string( code );
         std::string log = "Error accessing file, code: ";
         log += codeStr;
-        HTTP_ERROR( 500, client );
+        HTTP_ERROR( 500, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500, log,0 );
 
         msg.connection = "close";
@@ -290,7 +314,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
             std::string codeStr = std::to_string( code );
             std::string log = "Error writting to file, code: ";
             log += codeStr;
-            HTTP_ERROR( 500, client );
+            HTTP_ERROR( 500, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500,log, 0 );
             msg.connection = "close";
             CloseHandle ( hFile );
@@ -311,7 +335,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                 delete[] buffer;
                 return;
         }
-        int recBytes = recv( client, buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ), 0 );
+        int recBytes = netRecv( client, msg.ssl,buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ));
         if ( recBytes <= 0)
         {
             
@@ -319,7 +343,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
             std::string codeStr = std::to_string( code );
             std::string log = "Premature end of connection while writing to file, code: ";
             log += codeStr;
-            HTTP_ERROR(  500, client );
+            HTTP_ERROR(  500, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500, log, 0 );
             msg.connection = "close";
             CloseHandle ( hFile );
@@ -337,7 +361,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                 std::string codeStr = std::to_string( code );
                 std::string log = "Error Writing to file, code: ";
                 log += codeStr;
-                HTTP_ERROR ( 500, client );
+                HTTP_ERROR ( 500, client, msg.ssl );
                 appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500,log, 0 );
                 CloseHandle( hFile );
                 delete [] buffer;
@@ -350,7 +374,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
             auto duration = duration_cast<std::chrono::milliseconds>(end - start);
             if ( duration > std::chrono::minutes(7) )
             {
-                HTTP_ERROR ( 500, client );
+                HTTP_ERROR ( 500, client, msg.ssl );
                 appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500, "Error exceeded the maximum time to recv the file or write to disk",0 );
                 CloseHandle( hFile );
                 delete [] buffer;
@@ -364,7 +388,7 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Date: " + getDateNdTime() + "\r\n"
                              "Location: " + msg.url + "\r\n"
                              "\r\n";
-        send(client, header.c_str(), header.size(), 0); 
+        netSend(client, msg.ssl, header.c_str(), header.size() ); 
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 201,"Created", 1 );
         delete [] buffer;
         CloseHandle ( hFile );
@@ -377,7 +401,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
     
     if ( msg.url == "--" )
     {
-        HTTP_ERROR( 400, client );
+        HTTP_ERROR( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Ivalid URL", 0 );
         msg.connection = "close";
         return;
@@ -386,14 +410,14 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
     auto result = std::from_chars (msg.contLength.data(), msg.contLength.data() + msg.contLength.size(), value);
     if ( result.ec != std::errc{} || value < ( int ) msg.body.size()  ) // 1GB limit
     {
-        HTTP_ERROR ( 400, client );
+        HTTP_ERROR ( 400, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid or missing Content-Length", 0 );
         msg.connection = "close";
         return;
     }
     if ( value > 1073741824 ) //1GB
     {
-        HTTP_ERROR ( 413, client );
+        HTTP_ERROR ( 413, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 413, "Content too large", 0 );
         msg.connection = "close";
         return;
@@ -420,7 +444,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
         std::string codeStr = std::to_string( code );
         std::string log = "Error accessing file, code: ";
         log += codeStr;
-        HTTP_ERROR( 500, client );
+        HTTP_ERROR( 500, client, msg.ssl );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500,log, 0 );
 
         msg.connection = "close";
@@ -445,7 +469,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
             std::string codeStr = std::to_string( code );
             std::string log = "Error writting to file, code: ";
             log += codeStr;
-            HTTP_ERROR( 500, client );
+            HTTP_ERROR( 500, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500,log, 0 );
             msg.connection = "close";
             CloseHandle ( hFile );
@@ -466,14 +490,14 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
                 delete[] buffer;
                 return;
         }
-        int recBytes = recv( client, buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ), 0 );
+        int recBytes = netRecv( client, msg.ssl ,buffer, std::min<int>(bufferSize, std::max<int>(remainBytes - bytesWritten,0) ));
         if ( recBytes <= 0)
         {
             int code = WSAGetLastError();
             std::string codeStr = std::to_string( code );
             std::string log = "Premature end of connection while writing to file, code: ";
             log += codeStr;
-            HTTP_ERROR(  500, client );
+            HTTP_ERROR(  500, client, msg.ssl );
             appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500, log, 0 );
             msg.connection = "close";
             CloseHandle ( hFile );
@@ -491,7 +515,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
                 std::string codeStr = std::to_string( code );
                 std::string log = "Error Writing to file, code: ";
                 log += codeStr;
-                HTTP_ERROR ( 500, client );
+                HTTP_ERROR ( 500, client, msg.ssl );
                 appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500, log, 0 );
                 CloseHandle( hFile );
                 delete [] buffer;
@@ -504,7 +528,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
             auto duration = duration_cast<std::chrono::milliseconds>(end - start);
             if ( duration > std::chrono::minutes(7) )
             {
-                HTTP_ERROR ( 500, client );
+                HTTP_ERROR ( 500, client, msg.ssl );
                 appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 500,"Error exceeded the maximum time to recv the file or write to disk", 0 );
                 CloseHandle( hFile );
                 delete [] buffer;
@@ -518,7 +542,7 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
                              "Connection: keep-alive\r\n"       
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n";
-        send(client, header.c_str(), header.size(), 0); 
+        netSend(client, msg.ssl,header.c_str(), header.size() ); 
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, code, status, 1 );
                           
         delete [] buffer;
@@ -640,3 +664,6 @@ std::string getDateNdTime()
 
     return time;
 }
+
+
+

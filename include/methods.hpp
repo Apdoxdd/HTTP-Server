@@ -31,7 +31,18 @@ inline int netRecv( SOCKET client, SSL *ssl, char *buf, int len )
 
 inline int netSend( SOCKET client, SSL *ssl, const char *buf, int len )
 {
-    return ssl? SSL_write( ssl, buf, len) : send( client, buf, len, 0 );
+    int totalSent {0};
+    while ( totalSent < len )
+    {
+        int sent = ssl? SSL_write( ssl, buf + totalSent , len - totalSent )
+                   : send( client, buf + totalSent, len - totalSent, 0 );
+        if ( sent <= 0 )
+            return sent;
+        totalSent += sent;
+
+    }
+    return totalSent;
 }
+
 
 #endif

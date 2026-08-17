@@ -2,6 +2,7 @@
 #include "../include/httpRequest.hpp"
 #include "../include/maps.hpp"
 #include "../include/logger.hpp"
+#include "../include/fileCache.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <handleapi.h>
@@ -15,6 +16,7 @@
 #include <winerror.h>
 #include <winnt.h>
 #include <chrono>
+
 
 void HTTP_ERROR ( int code, SOCKET &client, SSL *ssl )
 {
@@ -43,6 +45,23 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invalid URL",0 );
         msg.connection = "close";
         return;
+    }
+    {
+        std::shared_lock<std::shared_mutex>cacheLk( cacheMtx );
+        
+        auto it = fileCache.find( msg.url );
+        if ( it != fileCache.end() )
+        {
+            std::string header = "HTTP/1.1 200 OK\r\n"
+                                 "Content-Type: " + it->second.contentType + "\r\n"
+                                 "Content-Length: " + std::to_string( it->second.content.size() ) + "\r\n"
+                                 "Connection: keep-alive\r\n"
+                                 "Date: " + getDateNdTime() + "\r\n"
+                                 "\r\n";
+            netSend( client, msg.ssl, header.c_str(), header.size() );
+            appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK", 1 );
+            return;
+        }
     }
     std::shared_lock<std::shared_mutex>lk( lockFor( msg.url ) );
     HANDLE hFile = CreateFile(
@@ -93,8 +112,16 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
             return;
 
         }
-
-
+        std::string fileContent;
+        fileContent.resize( fileSize.QuadPart );
+        DWORD bytesReadTotal { 0 };
+        DWORD bytesRead { 0 };
+        while ( bytesReadTotal < (DWORD) fileSize.QuadPart && 
+                ReadFile( hFile, fileContent.data() + bytesReadTotal, (DWORD)(fileSize.QuadPart - bytesReadTotal),
+                        &bytesRead, NULL ) )
+                    {
+                        bytesReadTotal += bytesRead;
+                    }
         std::string header = "HTTP/1.1 200 OK\r\n"
                              "Content-Type: "+ it->second +"\r\n"
                              "Content-Length: " + std::to_string( fileSize.QuadPart )+"\r\n" 
@@ -103,6 +130,10 @@ void HTTP_HEAD( httpRequest &msg, SOCKET& client, std::string& path )
                              "\r\n";
         netSend( client, msg.ssl, header.c_str(), header.size() );
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
+        {
+            std::unique_lock<std::shared_mutex>cacheLk( cacheMtx );
+            fileCache[ msg.url ] = cachedFile{ fileContent, it->second };
+        }
     }
     CloseHandle( hFile );
 }
@@ -115,6 +146,23 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invlaid URL", 0 );
         msg.connection = "close";
         return;
+    }
+    {
+        
+        std::shared_lock<std::shared_mutex>cacheLk( cacheMtx );
+        auto it = fileCache.find( msg.url );
+        if ( it != fileCache.end() )
+        {
+            std::string header = "HTTP/1.1 200 OK\r\n"
+                                 "Content-Type: " + it->second.contentType + "\r\n"
+                                 "Content-Length: " + std::to_string( it->second.content.size() ) + "\r\n"
+                                 "Connection: keep-alive\r\n"
+                                 "Date: " + getDateNdTime() + "\r\n"
+                                 "\r\n" + it->second.content;
+            netSend( client, msg.ssl, header.c_str(), header.size() );
+            appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK", 1 );
+            return;
+        }
     }
     std::shared_lock<std::shared_mutex> lk( lockFor( msg.url ) );
     HANDLE hFile = CreateFile(
@@ -166,38 +214,28 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
 
         }
        
-        std::string dateNdTime = getDateNdTime();
 
+        std::string fileContent;
+        fileContent.resize( fileSize.QuadPart );
+        DWORD bytesReadTotal { 0 };
+        DWORD bytesRead { 0 };
+        while ( bytesReadTotal < (DWORD) fileSize.QuadPart && 
+                ReadFile( hFile, fileContent.data() + bytesReadTotal, (DWORD)(fileSize.QuadPart - bytesReadTotal ),
+                        &bytesRead, NULL ) )
+                    {
+                        bytesReadTotal += bytesRead;
+                    }
         std::string header = "HTTP/1.1 200 OK\r\n"
                              "Content-Type: "+ it->second +"\r\n"
                              "Content-Length: " + std::to_string( fileSize.QuadPart )+"\r\n" 
                              "Connection: keep-alive\r\n"
                              "Date: " + getDateNdTime() + "\r\n"
-                             "\r\n";
-        netSend ( client, msg.ssl ,header.c_str(), header.size() );
-        appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK",1 );
-        if ( !msg.ssl )
+                             "\r\n" + fileContent;
+        netSend( client, msg.ssl, header.c_str(), header.size() );
+        appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
         {
-            bool success = TransmitFile ( client, hFile, 0, 0, NULL, NULL, 0 );
-        }
-        else 
-        { 
-            char filebuf [4096];
-            DWORD bytesRead{};
-            while (ReadFile(hFile, filebuf, sizeof(filebuf), &bytesRead, NULL) && bytesRead > 0)
-            {
-                DWORD totalSent { 0 };
-                while ( totalSent < bytesRead )
-                { //since write does not guarntee sending all the bytes 
-                    int sent = SSL_write( msg.ssl, filebuf + totalSent, bytesRead - totalSent );
-                    if ( sent <= 0 )
-                        break;
-                    totalSent += sent;
-                }
-                if ( totalSent < bytesRead )
-                    break;
-                // means sent was <= 0 so we had to leave the connection
-            }
+            std::unique_lock<std::shared_mutex>cacheLk( cacheMtx );
+            fileCache[ msg.url ] = cachedFile{ fileContent, it->second };
         }
     }
     CloseHandle( hFile );
@@ -229,6 +267,10 @@ void HTTP_DELETE ( httpRequest &msg, SOCKET &client, std::string& path )
         netSend ( client, msg.ssl, header.c_str(), header.size() );   
     
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 204,"No Content",1 );
+        {
+                std::unique_lock<std::shared_mutex> cacheLk( cacheMtx );
+                    fileCache.erase( msg.url );
+        }
     }
     else 
     {
@@ -390,6 +432,10 @@ void HTTP_PUT ( httpRequest &msg, SOCKET &client, std::string& path )
                              "\r\n";
         netSend(client, msg.ssl, header.c_str(), header.size() ); 
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 201,"Created", 1 );
+        {
+                std::unique_lock<std::shared_mutex> cacheLk( cacheMtx );
+                    fileCache.erase( msg.url );
+        }
         delete [] buffer;
         CloseHandle ( hFile );
 
@@ -544,7 +590,10 @@ void HTTP_POST( httpRequest &msg, SOCKET &client, std::string& path )
                              "\r\n";
         netSend(client, msg.ssl,header.c_str(), header.size() ); 
         appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, code, status, 1 );
-                          
+        {
+                std::unique_lock<std::shared_mutex> cacheLk( cacheMtx );
+                    fileCache.erase( msg.url );
+        }
         delete [] buffer;
         CloseHandle ( hFile );
 

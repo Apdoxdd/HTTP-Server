@@ -280,7 +280,10 @@ bool httpServer::validateRequest( httpRequest& msg, SOCKET& client )
                 {
                     HTTP_ERROR(505, client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 505,"Unsupported Version",0 );
+                    msg.connection = "close";
+                    return false;
                 }
+
                 else
                 {
                     HTTP_ERROR( 400, client, msg.ssl );

@@ -47,5 +47,6 @@ Then in addition to the backlog change I increased the threadpool size to a few 
     make it past 10k/sec
 
 * if it doesnt work ill also disable the write file for get and make it return a string
-
+    lol disabling writing file and only sending text jumped it to 50k/ second, i think i need to start
+    caching files
 

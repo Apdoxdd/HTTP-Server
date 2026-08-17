@@ -27,7 +27,7 @@ void HTTP_ERROR ( int code, SOCKET &client, SSL *ssl )
                            "Date: " + getDateNdTime() + "\r\n";
     if ( code == 405 )
         response += "Allow: GET, POST, HEAD, PUT, DELETE\r\n";
-    response += "\r\n\r\n";
+    response += "\r\n";
     if ( ssl )
         SSL_write( ssl, response.c_str(), response.size() );
     else

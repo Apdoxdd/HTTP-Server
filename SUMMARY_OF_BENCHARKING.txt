@@ -1,0 +1,26 @@
+hopefully the last refactor ong
+
+
+Starting point: ~10,000 req/sec ceiling under hey benchmarks, regardless of concurrency level, with unexpectedly high latency (~9-10ms average) for tiny static file responses on loopback.
+
+
+
+Issue 1 — Nagle's algorithm stalling header/body writes
+
+Symptom: requests taking ~40ms round-trip despite being on localhost.
+Cause: TCP_NODELAY was never set on accepted sockets. Responses were sent as two separate writes (header via send()/SSL_write(), body via TransmitFile/manual SSL_write loop), and without TCP_NODELAY, Nagle's algorithm combined with the client's delayed-ACK behavior stalled the second write.
+Fix: set TCP_NODELAY on the client socket immediately after accept(), alongside the existing SO_RCVTIMEO call.
+
+
+Issue 2 — Per-request file I/O dominating latency
+
+Symptom: ~9ms average latency per request persisted even after fixing Nagle, flat regardless of concurrency (hey -c 100 through -c 1000 all plateaued around 9-10K req/sec).
+Cause: every GET/HEAD performed CreateFile → GetFileSizeEx → CloseHandle on every request with no caching, even for the same file requested repeatedly. Likely compounded by real-time antivirus (Windows Defender) intercepting each CreateFile call.
+Diagnostic: temporarily replaced the file-serving path with a static in-memory response — throughput jumped ~4x (to ~40K req/sec at -c 100), confirming file I/O as the dominant cost.
+Fix: built an in-memory file cache (unordered_map<url, {content, contentType}>) guarded by a dedicated shared_mutex. Cache is checked first on GET/HEAD (shared lock); populated on cache miss after reading the file once; invalidated on PUT/POST/DELETE inside the existing per-URL write lock, so cache consistency piggybacks on the locking that already protected disk writes.
+Result: throughput roughly tripled across all concurrency levels (~30-35K req/sec, up from ~9-10K), average latency dropped from ~9ms to ~3ms at -c 100.
+
+    Before  After
+    Throughput (-c 100) ~10,700 req/sec ~30,400 req/sec
+    Avg latency (-c 100)    ~9.1ms  ~3.0ms
+    Known bottleneck    Nagle + disk I/O    Thread-pool/connection ceiling under high concurrency

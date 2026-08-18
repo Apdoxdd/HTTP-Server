@@ -1,4 +1,4 @@
-dependency/* linguist-vendored
+dependency/** linguist-vendored
 *.h linguist-vendored
 *.c linguist-vendored
 CMakeLists.txt linguist-vendored

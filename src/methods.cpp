@@ -143,7 +143,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
     if ( msg.url == "--" )
     {
         HTTP_ERROR( 400, client, msg.ssl );
-        appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invlaid URL", 0 );
+       // appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Invlaid URL", 0 );
         msg.connection = "close";
         return;
     }
@@ -160,7 +160,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
                                  "Date: " + getDateNdTime() + "\r\n"
                                  "\r\n" + it->second.content;
             netSend( client, msg.ssl, header.c_str(), header.size() );
-            appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK", 1 );
+           // appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200, "OK", 1 );
             return;
         }
     }
@@ -181,7 +181,7 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
         std::string log = "Error accessing file or it doesnt exist, code: ";
         log += codeStr;
         HTTP_ERROR ( 404, client, msg.ssl );
-        appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 404, log, 0 );
+        //appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 404, log, 0 );
         msg.connection = "close";
         return;
     }
@@ -232,7 +232,8 @@ void HTTP_GET ( httpRequest &msg, SOCKET &client, std::string& path )
                              "Date: " + getDateNdTime() + "\r\n"
                              "\r\n" + fileContent;
         netSend( client, msg.ssl, header.c_str(), header.size() );
-        appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
+        //appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 200,"OK",1 );
+
         {
             std::unique_lock<std::shared_mutex>cacheLk( cacheMtx );
             fileCache[ msg.url ] = cachedFile{ fileContent, it->second };

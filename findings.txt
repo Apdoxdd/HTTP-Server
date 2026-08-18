@@ -21,9 +21,6 @@ Then in addition to the backlog change I increased the threadpool size to a few 
 
 
 
-** things to do:
-    1) test from other pc  ( see does it take internet or not )
-    2) look into how to make the accept loop not 1 thread 
 
 
 

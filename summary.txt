@@ -42,8 +42,8 @@ c=25,000: 726,275 buffer-space errors, 47,666 actively-refused, plus small numbe
     - I steadly increased the number of threads in the pool by a factor determined imprically through multi-
       runs, Basically binary searching from a factor of 5 to 100, which had the best performance.
     
-    - landed on 50 ( although the result is probably specific to my own machine and number of hardware
-      threads it has, so IOCP or epoll is still superior )
+    - landed on 50 ( although the result was tailored on one machine it still performs well on machines with similar specs, still IOCP or epoll is still superior )
+
     
     - through this solution i reached about 10k req/sec steadily, and able to support about 12k users.
 
@@ -54,8 +54,12 @@ c=25,000: 726,275 buffer-space errors, 47,666 actively-refused, plus small numbe
     - for the first I commented logging when benchmarking.
 
     - for the second I built a custom made cache that lazily loads a file into memory the first time it           serves it.
+
     - file caches are emptied when edicted or deleted but not when the cahce gets big ( potenital impro-
       vment )
     
     - Through these changes we reached around 70k req/sec surpasing Apache on most configurations that 
       require feasible amounts of RAM to test
+
+
+

@@ -1,0 +1,61 @@
+- current Server performance on CacheNoLog branch ( branch with no logging for max speeds )
+ * all bench marks ran on a business Laptop with 6 cores and 12 hardware threads ( Ryzen 5 pro 5650U )
+
+Concurrency (-c)    Requests/sec    Avg latency     p99 latency     Status 200      Success rate
+    100                 74,663.79       1.3 ms          4.8 ms       1,000,000          100%
+    500                 70,217.55       5.8 ms         27.2 ms       1,000,000          100%
+  1,000                 70,660.96      10.5 ms         35.3 ms       1,000,000          100%
+  5,000                 67,906.72      40.2 ms         30.5 ms       1,000,000          100%
+ 10,000                 62,632.71      85.4 ms        794.3 ms       1,000,000          100%
+ 15,000                 43,709.88   —     -           7690  ms         730,730          73.1%
+ 20,000                 48,442.15     293.8 ms        10.8  s          679,127          67.9%
+ 25,000                 29,257.13   — 225,520            -               -              22.6%
+
+            ( most of failure is dial tcp: bind: ... system lacked sufficient buffer space and connectex: ... actively refused)
+            since im running hey and the server on the same machine, sometimes the OS exceeds the backlog
+            listen refusing to let use any new sockets which fails connections before it begin.
+
+
+Error breakdown for the failing runs (15k, 20k, 25k):
+
+c=15,000: 240,286 "bind: system lacked sufficient buffer space," 18,984 "connection actively refused"
+c=20,000: 304,873 buffer-space errors, 16,000 actively-refused
+c=25,000: 726,275 buffer-space errors, 47,666 actively-refused, plus small numbers of EOF/timeout/idle-connection errors
+
+
+*** Architecture decisions :
+ 1) first the server was thread per connection, which proved practically useless under any load.
+ 
+ 2) second I developed a custom made threadpool with the number of threads equal to hardware threads:
+    - Before solving the Nigel alogorithim setting the server refused most connections above 1k.
+
+    - After solving it the server could serve up to 800-900 concurrent users before it starts failing.
+    
+    - after investigation found that due to the nature of blocking networking functions, the threds spend
+      most of their time sleeping, on a pool of 12 threads this is very low performant ( 1k req / sec or so)
+    
+    - the solution I found was either switch to IOCP functions ( big architecture change since i didnt know       about them before starting ) or another one i developed.
+    
+    - basically trying to get the best of both worlds, increasing throughput while leaving cpu context swi-
+      tching as low as possible.
+    
+    - I steadly increased the number of threads in the pool by a factor determined imprically through multi-
+      runs, Basically binary searching from a factor of 5 to 100, which had the best performance.
+    
+    - landed on 50 ( although the result is probably specific to my own machine and number of hardware
+      threads it has, so IOCP or epoll is still superior )
+    
+    - through this solution i reached about 10k req/sec steadily, and able to support about 12k users.
+
+
+    - then found 2 potential bottlenecks, accuiring the logs Queue mutex to push into it and constanly
+      using windows file-access functions ( very slow as they anti-virus scan them before opening )
+
+    - for the first I commented logging when benchmarking.
+
+    - for the second I built a custom made cache that lazily loads a file into memory the first time it           serves it.
+    - file caches are emptied when edicted or deleted but not when the cahce gets big ( potenital impro-
+      vment )
+    
+    - Through these changes we reached around 70k req/sec surpasing Apache on most configurations that 
+      require feasible amounts of RAM to test

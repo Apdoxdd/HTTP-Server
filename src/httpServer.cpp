@@ -185,7 +185,7 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
 
                 auto end = std::chrono::high_resolution_clock::now();
                 auto duration = duration_cast<std::chrono::microseconds>(end - start);
-                if ( duration > std::chrono::seconds(30) )
+                if ( duration > std::chrono::seconds( 1 ) )
                 {
                     HTTP_ERROR( 400,client, msg.ssl );
                     appLogger.pushLog( std::this_thread::get_id(), msg.host, msg.method, 400,"Exceeded max header sending time",0 );
@@ -213,7 +213,7 @@ void httpServer::serveRequest( SOCKET client, SSL *con )
             }
             auto timeOutEnd = std::chrono::high_resolution_clock::now();
             auto timeOutDur = duration_cast<std::chrono::microseconds>(timeOutEnd - timeOut);
-            if ( timeOutDur >= std::chrono::minutes(10) )
+            if ( timeOutDur >= std::chrono::seconds(2) )
                 msg.connection = "close";
 
             if ( msg.connection == "close" )

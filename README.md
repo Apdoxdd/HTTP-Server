@@ -270,6 +270,17 @@ OpenSSL libraries and headers, as well as doctest, are bundled with the reposito
 python tests/integration/integration_test.py
 ```
 
+## Testing
+
+To run unit tests, after building the main branch run (form the project root):
+```bash
+ctest --test-dir build --output-on-failure
+```
+or 
+```bash
+ctest --test-dir build --output-on-failure -V
+```
+
 
 ## Limitations & Future Improvements
 
@@ -292,3 +303,15 @@ python tests/integration/integration_test.py
 - **Chunked Transfer Encoding** — Add support for HTTP/1.1 chunked transfer encoding for requests and responses.
 - **Advanced Cache Management** — Introduce configurable cache limits and eviction policies to better control memory usage.
 - **Further Concurrency Optimization** — Revisit the thread scheduling and resource-locking architecture after introducing asynchronous I/O.
+
+## Resources & References
+### Resources
+- C++ Concurrency in Action (second edition): couldnt recommend it enough to be honest.
+
+- Practical Networking @youtube ( https://www.youtube.com/@PracticalNetworking ) Exceptional explanations for TLS and security concepts in general.
+
+### References
+- RFC 9110 — HTTP Semantics
+- Microsoft Winsock Documentation
+- OpenSSL Documentation
+- cppreference

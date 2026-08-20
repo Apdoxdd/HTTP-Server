@@ -62,4 +62,12 @@ c=25,000: 726,275 buffer-space errors, 47,666 actively-refused, plus small numbe
       require feasible amounts of RAM to test
 
 
+*** When testing with big files, Apache outperforms myServer under low connections count but mine 
+     outperforms under higher, I suppose that happens since my caching system relies on User-space send 
+     functions which forces the thread to keep looping until the file is fully-sent
+     while Apache uses kernel-space send which send the file much faster.
 
+     - a fix might be to instead of caching the file bytes we cache the file handles, so windows itself
+       is the one responsible for sending the files, and when a new connection want to send a file thats 
+        handle was cached, it can just call windows kernel-level send diretly without needing to reopen
+        the file.

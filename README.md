@@ -170,7 +170,7 @@ The server was benchmarked under high-concurrency workloads and compared against
 Apache HTTP Server using the MPM event architecture. The benchmarks focus on
 throughput and tail latency across different concurrency levels.
 
-*For benchmarking, it is recommended to build the `CacheNoLog` branch, which disables logging and avoids its overhead from affecting the measurements.*
+*For benchmarking, it is recommended to build the `CacheNolog` branch, which disables logging and avoids its overhead from affecting the measurements.*
 
 ### High-Concurrency Throughput
 
@@ -216,16 +216,32 @@ of concurrent load.
 
 ### Requirements
 
-- **OS:** Windows
+- **OS:** 64-bit Windows 10 or 11 (the bundled OpenSSL DLLs are x64 only)
+- **Compiler:** MinGW-w64 with GCC 13 or newer (C++23 and `std::format` needed).
+  MSVC is not supported: the bundled OpenSSL import libraries are MinGW-format.
 - **CMake:** 3.10 or newer
-- **Compiler:** C++23-compatible compiler (MinGW-w64/GCC recommended)
-- **Git:** Required to clone the repository
-- **OpenSSL CLI:** Required to generate the TLS certificate and must be available through the `PATH` environment variable
-- **hey:** Required only for integration/stress testing. `hey.exe` must be placed in the project's root directory.
+- **mingw32-make** on your `PATH` (used by the "MinGW Makefiles" generator)
+- **OpenSSL CLI** on your `PATH`, only to generate the certificate
+- **Git**
+- **hey** (optional): only for stress testing; place `hey.exe` in the project root
 
 OpenSSL libraries and headers, as well as doctest, are bundled with the repository and do not need to be installed separately.
 
-           *The files to be served must be inside the content directory*
+### Important: folder layout
+
+The server finds its folders relative to the executable, not the current directory:
+
+```
+HTTP-Server/
+├── build/httpServer.exe
+├── content/    <- files that get served (lowercase names)
+└── cert/       <- server.crt and server.key (you create these)
+```
+
+If `cert/server.crt` or `server.key` is missing, the server prints an error and exits.
+Run the `openssl` command from cmd or PowerShell, not Git Bash, which can mangle
+the `/CN=localhost` argument.
+
 
 ### TLS Certificate
 
@@ -263,11 +279,33 @@ OpenSSL libraries and headers, as well as doctest, are bundled with the reposito
  ./httpServer.exe
 ```
 
+### Usage
+
+| Protocol | URL                      |
+|----------|--------------------------|
+| HTTP     | http://localhost:8080/   |
+| HTTPS    | https://localhost:4040/  |
+
+- Ports are set in `src/main.cpp`.
+- The self-signed certificate will show a browser warning; this is expected.
+- Windows Firewall may prompt on first run; allow access for local testing.
+- Only these extensions are served: html, htm, txt, css, csv, xml, js, json,
+  jpg, jpeg, png, gif, svg, webp, pdf, mp3, mp4, wav, mkv. Other files return 400.
+- URLs are lowercased, so name files in `content/` in lowercase.
+
+```
+curl -X PUT  --data-binary @a.txt http://localhost:8080/a.txt   # create/overwrite
+curl -X POST --data "more"        http://localhost:8080/a.txt   # append
+curl -X DELETE                    http://localhost:8080/a.txt   # delete
+```
+
+> **Security:** PUT, POST and DELETE have no authentication. Anyone who can reach
+> the port can modify files in `content/`. Run it locally or behind a firewall.
 
 ### Test with hey
  Place hey.exe in the project's root directory, then run:
  ```bash
-python tests/integration/integration_test.py
+python tests/integration/stressTestScript.py
 ```
 
 ## Testing
@@ -292,6 +330,8 @@ ctest --test-dir build --output-on-failure -V
 - **In-memory caching** — Cached files are stored in memory, which can increase memory usage when serving large or numerous resources.
 - **Blocking I/O model** — Request processing relies on blocking network and file operations, requiring a larger worker pool to maintain throughput under high concurrency.
 - **TLS configuration** — HTTPS currently relies on a locally configured certificate and key and does not provide automated certificate management.
+- **MinGW-only build** — The bundled OpenSSL import libraries are MinGW-format and 64-bit, so MSVC and 32-bit builds are not supported.
+- **No authentication** — PUT, POST and DELETE are open to any client that can reach the server.
 
 ### Future Improvements
 
